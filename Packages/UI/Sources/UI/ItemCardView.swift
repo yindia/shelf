@@ -28,6 +28,9 @@ struct ItemCardView: View {
                     .clipped()
                 footer
             }
+            // Light body surface with dark, readable text in both appearances.
+            .background(Theme.cardBody)
+            .environment(\.colorScheme, Theme.bodyColorScheme)
         }
         .frame(width: Theme.cardWidth, height: Theme.cardHeight)
         // Translucent elevated surface (tracks light/dark); solid under Reduce

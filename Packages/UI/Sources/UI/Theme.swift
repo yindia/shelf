@@ -185,6 +185,8 @@ public enum Theme {
 
     // MARK: Thumbnail / icon tile styling
     public static let thumbCorner: CGFloat = 12
+    /// Max height of a contained preview thumbnail (link/video) — ~55% of body.
+    public static let previewMaxHeight: CGFloat = 130
     public static let thumbInnerShadowOpacity: Double = 0.22
     public static let thumbInnerShadowRadius: CGFloat = 4
 

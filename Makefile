@@ -4,13 +4,19 @@ BUNDLE   := build/$(APP).app
 DMG      := build/$(APP).dmg
 CONFIG   := release
 BINARY   := .build/$(CONFIG)/ShelfApp
+# Universal (Apple Silicon + Intel) build output.
+UBINARY  := .build/apple/Products/Release/ShelfApp
 
-.PHONY: all build bundle run test clean dmg
+.PHONY: all build build-universal bundle run test clean dmg dist
 
 all: bundle
 
 build:
 	swift build -c $(CONFIG)
+
+# Universal binary for distribution (runs on Apple Silicon AND Intel).
+build-universal:
+	swift build -c $(CONFIG) --arch arm64 --arch x86_64
 
 # Assemble a proper .app bundle with Info.plist + entitlements, then ad-hoc sign.
 bundle: build
@@ -27,6 +33,12 @@ bundle: build
 
 run: bundle
 	open $(BUNDLE)
+
+# Full universal release: universal build -> bundle -> DMG.
+dist: build-universal
+	$(MAKE) bundle BINARY=$(UBINARY)
+	$(MAKE) dmg
+	@lipo -archs $(BUNDLE)/Contents/MacOS/ShelfApp
 
 # Package the built .app into a compressed, drag-to-install DMG.
 # Requires `make bundle` first (the release workflow patches the version between).

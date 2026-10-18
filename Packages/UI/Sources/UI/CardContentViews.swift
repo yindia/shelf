@@ -145,7 +145,18 @@ struct VideoCardBody: View {
     var body: some View {
         let poster = loader.thumbnail(for: item, size: CGSize(width: Theme.cardWidth, height: 220))
         let info = loader.info(for: item)
-        PreviewFill(image: poster)
+        VStack(spacing: 0) {
+            Group {
+                if let poster {
+                    Image(nsImage: poster).resizable().aspectRatio(contentMode: .fit)
+                } else {
+                    PreviewFill(image: nil)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: Theme.previewMaxHeight)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
+            .innerShadowOverlay()
             .overlay {
                 Image(systemName: "play.fill")
                     .font(.system(size: 22, weight: .bold))
@@ -156,6 +167,8 @@ struct VideoCardBody: View {
             .overlay(alignment: .bottomTrailing) {
                 if let duration = info?.durationText { MediaChip(text: duration) }
             }
+            Spacer(minLength: 0)
+        }
     }
 }
 
@@ -268,20 +281,20 @@ struct LinkCardBody: View {
             Group {
                 if let art {
                     Image(nsImage: art)
-                        .resizable().aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
+                        .resizable().aspectRatio(contentMode: .fit)
                 } else {
                     MonogramTile(seed: host)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: Theme.previewMaxHeight)
             .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
             .innerShadowOverlay()
 
             Text(host).font(Theme.linkTitleFont).lineLimit(1)
             Text(item.plainText ?? "")
                 .font(Theme.bodyFont).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }

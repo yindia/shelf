@@ -33,8 +33,11 @@ jobs:
       - name: Test Core
         run: swift test --package-path Packages/Core
 
-      - name: Build + bundle
-        run: make bundle
+      - name: Build universal (arm64 + x86_64)
+        run: make build-universal
+
+      - name: Bundle app (universal binary)
+        run: make bundle BINARY=.build/apple/Products/Release/ShelfApp
 
       - name: Stamp version into Info.plist
         run: |
@@ -43,6 +46,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
           # Re-sign (ad-hoc) after editing the bundle so the signature stays valid.
           codesign --force --deep --sign - --entitlements Resources/Shelf.entitlements build/Shelf.app
+          echo "Bundled architectures:" && lipo -archs build/Shelf.app/Contents/MacOS/ShelfApp
 
       - name: Package DMG
         run: make dmg
