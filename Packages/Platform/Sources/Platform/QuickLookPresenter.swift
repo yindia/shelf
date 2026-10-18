@@ -4,8 +4,11 @@ import Quartz
 
 /// Presents file-backed items in `QLPreviewPanel` (Space to open, Esc closes).
 /// Image blobs without a file URL are written to a temp file first.
-public final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
-    private var urls: [URL] = []
+@MainActor
+public final class QuickLookPresenter: NSObject {
+    // Read by the (nonisolated) data-source callbacks, which QuickLook invokes
+    // on the main thread; set only from the main-actor methods below.
+    nonisolated(unsafe) private var urls: [URL] = []
 
     public override init() { super.init() }
 
@@ -47,10 +50,13 @@ public final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPre
         }
         return nil
     }
+}
 
-    // MARK: QLPreviewPanelDataSource
-    public func numberOfPreviewItems(in panel: QLPreviewPanel) -> Int { urls.count }
-    public func previewPanel(_ panel: QLPreviewPanel, previewItemAt index: Int) -> QLPreviewItem {
+extension QuickLookPresenter: QLPreviewPanelDataSource {
+    nonisolated public func numberOfPreviewItems(in panel: QLPreviewPanel) -> Int { urls.count }
+    nonisolated public func previewPanel(_ panel: QLPreviewPanel, previewItemAt index: Int) -> QLPreviewItem {
         urls[index] as NSURL
     }
 }
+
+extension QuickLookPresenter: QLPreviewPanelDelegate {}
