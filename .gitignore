@@ -1,0 +1,17 @@
+# Build output
+.build/
+build/
+DerivedData/
+*.xcuserstate
+*.xcodeproj
+*.xcworkspace
+
+# SwiftPM
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Reverse-engineered reference binary — NOT part of this project, never commit.
+Paste.app/
+*.app/

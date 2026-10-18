@@ -1,0 +1,29 @@
+# SwiftLint config — https://github.com/realm/SwiftLint
+included:
+  - App
+  - Packages/Core/Sources
+  - Packages/UI/Sources
+  - Packages/Platform/Sources
+excluded:
+  - .build
+  - build
+  - Packages/Core/Tests
+
+disabled_rules:
+  - todo
+
+opt_in_rules:
+  - force_unwrapping
+  - empty_count
+  - closure_spacing
+
+line_length:
+  warning: 120
+  error: 160
+
+identifier_name:
+  min_length: 2
+  excluded: [id, r, g, b, up]
+
+type_name:
+  min_length: 3

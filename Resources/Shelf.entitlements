@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Unsandboxed direct build: the App Sandbox is intentionally OFF so the app
+         can poll NSPasteboard, post synthetic Cmd+V via CGEvent, and use Carbon
+         global hotkeys. A sandboxed (Mac App Store) build would need different
+         mechanisms and is out of scope for v1. -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+</dict>
+</plist>
