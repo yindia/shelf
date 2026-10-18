@@ -75,8 +75,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.retention = savedPrivacy.retention
             self.pruneHistory(savedPrivacy.retention)
             self.pruneTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
-                guard let self else { return }
-                self.pruneHistory(self.retention)
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.pruneHistory(self.retention)
+                }
             }
 
             // Nudge for Accessibility once on first launch (needed for paste-back).

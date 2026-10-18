@@ -22,12 +22,12 @@ struct CollectionTabBar: View {
 
     var body: some View {
         HStack(spacing: Theme.tabSpacing) {
-            searchControl
-                .fixedSize()
-
             if isSearching {
-                Spacer(minLength: 0)
+                // A single full-width search field — fixed position, no layout shift.
+                searchField
             } else {
+                iconButton("magnifyingglass", help: "Search", action: onToggleSearch)
+                    .fixedSize()
                 // Left-aligned tabs (scroll if they overflow) + inline "+".
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.tabGap) {
@@ -44,30 +44,25 @@ struct CollectionTabBar: View {
         .padding(.horizontal, Theme.panelPadding)
     }
 
-    private var searchControl: some View {
-        Group {
-            if isSearching {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.secondaryText)
-                    TextField("Search", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .font(Theme.bodyFont)
-                        .focused($searchFocused)
-                        .frame(width: 180)
-                    Button { onToggleSearch() } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.secondaryText)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Close search")
-                }
-                .padding(.horizontal, 8).padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: Theme.tabCornerRadius, style: .continuous)
-                    .fill(Color(nsColor: .textBackgroundColor)))
-                .onAppear { searchFocused = true }
-            } else {
-                iconButton("magnifyingglass", help: "Search", action: onToggleSearch)
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Theme.secondaryText)
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(Theme.bodyFont)
+                .focused($searchFocused)
+                .frame(maxWidth: .infinity)
+            Button { onToggleSearch() } label: {
+                Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.secondaryText)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close search")
         }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .frame(height: 28)
+        .background(RoundedRectangle(cornerRadius: Theme.tabCornerRadius, style: .continuous)
+            .fill(Color(nsColor: .textBackgroundColor)))
+        .onAppear { searchFocused = true }
     }
 
     // MARK: Tab (selectable + drop target)
