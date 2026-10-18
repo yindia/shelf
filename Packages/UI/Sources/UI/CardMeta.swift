@@ -32,8 +32,9 @@ enum CardMeta {
         }
     }
 
-    /// Primary footer title (bold) for links/files/media; nil for plain content.
+    /// Primary footer title (bold). A user-given name wins for any kind.
     static func title(for item: ClipItemModel) -> String? {
+        if let name = item.userTitle, !name.isEmpty { return name }
         switch item.kind {
         case .link:
             if item.isMapLink { return item.mapPlace?.query ?? item.linkURL?.host }

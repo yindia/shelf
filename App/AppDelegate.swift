@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: PanelViewModel?
     /// App that was frontmost when the panel opened — the paste-back target.
     private var previousApp: NSRunningApplication?
+    private var isPaused = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -24,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 itemRepository: environment.repository,
                 itemWriter: environment.repository,
                 collectionRepository: environment.repository,
-                onPaste: { [weak self] item in self?.paste(item) },
+                onPaste: { [weak self] item, plain in self?.paste(item, plainText: plain) },
                 onCopy: { [weak self] item in self?.copyOnly(item) },
                 onDismiss: { [weak self] in self?.panelController?.hide() },
                 autoRules: savedRules,
@@ -41,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 infoProvider: environment.mediaInfoProvider
             )
             self.panelController = PanelController(model: model, previewLoader: previewLoader)
+            self.panelController?.onQuickLook = { [weak self] in self?.quickLookSelected() }
 
             setUpStatusItem()
             setUpHotKey()
@@ -63,11 +65,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(withTitle: "Show Shelf  (⇧⌘V)", action: #selector(togglePanel), keyEquivalent: "")
+        pauseMenuItem = menu.addItem(withTitle: "Pause Capture", action: #selector(togglePause), keyEquivalent: "p")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Shelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.items.forEach { $0.target = self }
         item.menu = menu
         statusItem = item
+    }
+
+    private var pauseMenuItem: NSMenuItem?
+
+    @objc private func togglePause() {
+        isPaused.toggle()
+        Task { await environment?.capture.setPaused(isPaused) }
+        pauseMenuItem?.title = isPaused ? "Resume Capture" : "Pause Capture"
+        statusItem?.button?.image = NSImage(
+            systemSymbolName: isPaused ? "pause.circle" : "doc.on.clipboard",
+            accessibilityDescription: isPaused ? "Shelf (paused)" : "Shelf"
+        )
     }
 
     // MARK: Hotkey — ⇧⌘V
@@ -97,14 +112,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         environment.pasteboard.write(item.representations, markSynthetic: true)
     }
 
-    private func paste(_ item: ClipItemModel) {
+    /// Open Quick Look for the selected item (Space).
+    func quickLookSelected() {
+        guard let item = model?.selectedItem, QuickLookPresenter.canPreview(item) else { return }
+        environment?.quickLook.toggle(for: item)
+    }
+
+    private func paste(_ item: ClipItemModel, plainText: Bool) {
         panelController?.hide()
         guard let environment else { return }
         // The item is written to the pasteboard either way; suppress re-capture of
         // our own write regardless of whether the synthetic paste succeeds.
         Task { await environment.capture.suppress(fingerprint: Fingerprint.make(item.representations)) }
         do {
-            _ = try environment.pasteBack.paste(item.representations, to: previousApp)
+            _ = try environment.pasteBack.paste(item.representations, to: previousApp, plainTextOnly: plainText)
         } catch {
             // Accessibility not granted: the content is copied (copy-only fallback);
             // prompt so the next paste can be synthetic.

@@ -55,6 +55,13 @@ public struct PanelView: View {
                 onClose: { model.isEditingRules = false }
             )
         }
+        .sheet(item: $model.editingItem) { item in
+            EditItemSheet(
+                item: item,
+                onSave: { title, text in model.applyEdit(item, title: title, text: text); model.editingItem = nil },
+                onCancel: { model.editingItem = nil }
+            )
+        }
         .confirmationDialog(
             "Delete this item?",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),

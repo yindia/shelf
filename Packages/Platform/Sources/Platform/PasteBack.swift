@@ -25,12 +25,15 @@ public final class PasteBack {
     @discardableResult
     public func paste(
         _ representations: [CapturedRepresentation],
-        to targetApp: NSRunningApplication?
+        to targetApp: NSRunningApplication?,
+        plainTextOnly: Bool = false
     ) throws -> String {
+        // Option-paste strips formatting to a single plain-text representation.
+        let reps = plainTextOnly ? PlainText.strip(representations) : representations
         // Always copy to the pasteboard first, so an untrusted app still gets a
         // copy-only fallback the user can paste manually.
-        pasteboard.write(representations, markSynthetic: true)
-        let fingerprint = Fingerprint.make(representations)
+        pasteboard.write(reps, markSynthetic: true)
+        let fingerprint = Fingerprint.make(reps)
 
         guard AccessibilityPermission.isTrusted else { throw PasteError.accessibilityNotTrusted }
 

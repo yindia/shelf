@@ -79,6 +79,8 @@ public struct ClipItemDraft: Sendable, Equatable {
     public let sourceBundleID: String?
     public let listID: UUID
     public let createdAt: Date
+    /// Text recognized from an image via OCR (indexed for search), if any.
+    public var ocrText: String?
 
     public init(
         kind: ClipKind,
@@ -86,7 +88,8 @@ public struct ClipItemDraft: Sendable, Equatable {
         representations: [CapturedRepresentation],
         sourceBundleID: String?,
         listID: UUID,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        ocrText: String? = nil
     ) {
         self.kind = kind
         self.fingerprint = fingerprint
@@ -94,6 +97,7 @@ public struct ClipItemDraft: Sendable, Equatable {
         self.sourceBundleID = sourceBundleID
         self.listID = listID
         self.createdAt = createdAt
+        self.ocrText = ocrText
     }
 }
 
@@ -106,6 +110,10 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
     public let sourceBundleID: String?
     public let listID: UUID?
     public let representations: [CapturedRepresentation]
+    /// User-given name (Edit → rename); overrides the derived title in the UI.
+    public let userTitle: String?
+    /// OCR-recognized text from an image, indexed for search.
+    public let ocrText: String?
 
     public init(
         id: UUID,
@@ -114,7 +122,9 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         fingerprint: String,
         sourceBundleID: String?,
         listID: UUID?,
-        representations: [CapturedRepresentation]
+        representations: [CapturedRepresentation],
+        userTitle: String? = nil,
+        ocrText: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -123,6 +133,8 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         self.sourceBundleID = sourceBundleID
         self.listID = listID
         self.representations = representations
+        self.userTitle = userTitle
+        self.ocrText = ocrText
     }
 
     /// Returns the bytes for an exact UTI if present.

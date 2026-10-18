@@ -29,9 +29,12 @@ public actor CaptureManager {
     private let repository: ItemRepositoryWriting
     private let classifier: Classifier
     private let config: CaptureConfig
+    /// Optional OCR engine; when set, image captures are indexed for search.
+    private let recognizer: TextRecognizing?
 
     private var timer: DispatchSourceTimer?
     private var lastChangeCount: Int
+    private var paused = false
     /// Opt-in auto-filing rules (default OFF → everything lands in history).
     private var rules: AutoCategorizationRules = AutoCategorizationRules()
     /// Fingerprints we wrote ourselves (paste-back) so we skip re-capturing them.
@@ -41,12 +44,14 @@ public actor CaptureManager {
         pasteboard: PasteboardReading,
         repository: ItemRepositoryWriting,
         classifier: Classifier = Classifier(),
-        config: CaptureConfig = CaptureConfig()
+        config: CaptureConfig = CaptureConfig(),
+        recognizer: TextRecognizing? = nil
     ) {
         self.pasteboard = pasteboard
         self.repository = repository
         self.classifier = classifier
         self.config = config
+        self.recognizer = recognizer
         self.lastChangeCount = pasteboard.changeCount
     }
 
@@ -68,6 +73,14 @@ public actor CaptureManager {
         timer = nil
     }
 
+    /// Pause/resume collecting without tearing down the timer.
+    public func setPaused(_ value: Bool) {
+        paused = value
+        // Avoid capturing everything copied while paused once we resume.
+        if !value { lastChangeCount = pasteboard.changeCount }
+    }
+    public var isPaused: Bool { paused }
+
     /// Tell the capturer to ignore the next appearance of this fingerprint
     /// (used when we restore an item to the pasteboard during paste-back).
     public func suppress(fingerprint: String) {
@@ -82,6 +95,7 @@ public actor CaptureManager {
     /// Reads the pasteboard once and persists a new item if warranted.
     /// Exposed `internal` for deterministic testing without the timer.
     func poll() async {
+        guard !paused else { return }
         let current = pasteboard.changeCount
         guard current != lastChangeCount else { return }
         lastChangeCount = current
@@ -101,12 +115,19 @@ public actor CaptureManager {
         let kind = classifier.classify(reps, sourceBundleID: snapshot.sourceBundleID)
         let text = reps.first { $0.typeIdentifier == UTIs.utf8PlainText || $0.typeIdentifier == UTIs.plainText }
             .flatMap { String(data: $0.data, encoding: .utf8) }
+        // OCR image captures so screenshots are findable in search.
+        var ocrText: String?
+        if kind == .image, let recognizer {
+            let imageData = reps.first { $0.typeIdentifier == UTIs.png || $0.typeIdentifier == UTIs.tiff }?.data
+            if let imageData { ocrText = await recognizer.recognizeText(in: imageData) }
+        }
         let draft = ClipItemDraft(
             kind: kind,
             fingerprint: fingerprint,
             representations: reps,
             sourceBundleID: snapshot.sourceBundleID,
-            listID: rules.route(kind: kind, text: text, fallback: config.defaultListID)
+            listID: rules.route(kind: kind, text: text, fallback: config.defaultListID),
+            ocrText: ocrText
         )
         _ = try? await repository.insert(draft)
     }

@@ -29,6 +29,10 @@ public protocol ItemRepositoryWriting: Sendable {
     func delete(id: UUID) async throws
     /// Refiles an item into a different collection.
     func setList(itemID: UUID, listID: UUID) async throws
+    /// Renames an item (nil clears the custom name).
+    func setTitle(itemID: UUID, title: String?) async throws
+    /// Replaces an item's plain-text content (Edit in place).
+    func setText(itemID: UUID, text: String) async throws
 }
 
 public enum RepositoryError: Error {
@@ -121,6 +125,7 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
                     item.setValue(draft.fingerprint, forKey: "fingerprint")
                     item.setValue(draft.sourceBundleID, forKey: "sourceBundleID")
                     item.setValue(draft.listID, forKey: "listID")
+                    item.setValue(draft.ocrText, forKey: "ocrText")
 
                     for rep in draft.representations {
                         let dataEntity = NSEntityDescription.insertNewObject(forEntityName: "ItemData", into: context)
@@ -144,6 +149,46 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
                         representations: draft.representations
                     )
                     continuation.resume(returning: model)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    public func setTitle(itemID: UUID, title: String?) async throws {
+        try await mutate(itemID: itemID) { $0.setValue(title, forKey: "userTitle") }
+    }
+
+    public func setText(itemID: UUID, text: String) async throws {
+        try await mutate(itemID: itemID) { object in
+            // Replace the plain-text representation blob in place.
+            let data = Data(text.utf8)
+            let reps = (object.value(forKey: "representations") as? Set<NSManagedObject>) ?? []
+            if let textRep = reps.first(where: {
+                ($0.value(forKey: "typeIdentifier") as? String) == UTIs.utf8PlainText
+            }) {
+                textRep.setValue(data, forKey: "data")
+            } else if let any = reps.first {
+                any.setValue(UTIs.utf8PlainText, forKey: "typeIdentifier")
+                any.setValue(data, forKey: "data")
+            }
+        }
+    }
+
+    /// Fetch one Item by id, apply `change`, and save.
+    private func mutate(itemID: UUID, _ change: @escaping @Sendable (NSManagedObject) -> Void) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            store.container.performBackgroundTask { context in
+                do {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "Item")
+                    request.predicate = NSPredicate(format: "id == %@", itemID as CVarArg)
+                    request.fetchLimit = 1
+                    if let object = try context.fetch(request).first {
+                        change(object)
+                        try context.save()
+                    }
+                    continuation.resume(returning: ())
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -226,7 +271,9 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
             fingerprint: fingerprint,
             sourceBundleID: object.value(forKey: "sourceBundleID") as? String,
             listID: object.value(forKey: "listID") as? UUID,
-            representations: reps
+            representations: reps,
+            userTitle: object.value(forKey: "userTitle") as? String,
+            ocrText: object.value(forKey: "ocrText") as? String
         )
     }
 

@@ -87,20 +87,26 @@ final class PanelController {
         keyMonitor = nil
     }
 
+    /// Called on Space to toggle Quick Look for the selected item.
+    var onQuickLook: (() -> Void)?
+
     /// Returns true if the event was consumed.
     private func handle(_ event: NSEvent) -> Bool {
+        let plain = event.modifierFlags.contains(.option)   // Option = paste without formatting
+
         // ⌘1…⌘9 → paste that card.
         if event.modifierFlags.contains(.command),
            let chars = event.charactersIgnoringModifiers,
            let number = Int(chars), (1...9).contains(number) {
-            model.activateNumber(number)
+            model.activateNumber(number, plainText: plain)
             return true
         }
 
         switch event.keyCode {
         case 123: model.moveLeft(); return true      // left arrow
         case 124: model.moveRight(); return true     // right arrow
-        case 36, 76: model.activateSelection(); return true  // return / keypad enter
+        case 49: onQuickLook?(); return true          // space → Quick Look
+        case 36, 76: model.activateSelection(plainText: plain); return true  // return / keypad enter
         case 53:                                       // escape — one-way hide
             if model.isSearching {
                 // First Esc exits search back to the carousel; second Esc hides.

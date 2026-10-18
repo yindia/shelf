@@ -241,6 +241,53 @@ final class CaptureTests: XCTestCase {
     }
 }
 
+final class PlainTextTests: XCTestCase {
+    func testStripKeepsOnlyPlainText() {
+        let reps = [
+            CapturedRepresentation(typeIdentifier: UTIs.rtf, data: Data([0x01])),
+            CapturedRepresentation(typeIdentifier: UTIs.html, data: Data("<b>hi</b>".utf8)),
+            text("hello world"),
+        ]
+        let stripped = PlainText.strip(reps)
+        XCTAssertEqual(stripped.count, 1)
+        XCTAssertEqual(stripped.first?.typeIdentifier, UTIs.utf8PlainText)
+        XCTAssertEqual(stripped.first.flatMap { String(data: $0.data, encoding: .utf8) }, "hello world")
+    }
+
+    func testStripWithoutTextReturnsOriginal() {
+        let reps = [CapturedRepresentation(typeIdentifier: UTIs.png, data: Data([0x89]))]
+        XCTAssertEqual(PlainText.strip(reps), reps)
+    }
+}
+
+final class ItemSearchTests: XCTestCase {
+    private func item(kind: ClipKind = .image, text: String? = nil, ocr: String? = nil,
+                      title: String? = nil) -> ClipItemModel {
+        let reps = text.map { [CapturedRepresentation(typeIdentifier: UTIs.utf8PlainText, data: Data($0.utf8))] } ?? []
+        return ClipItemModel(id: UUID(), kind: kind, createdAt: Date(), fingerprint: UUID().uuidString,
+                             sourceBundleID: nil, listID: nil, representations: reps,
+                             userTitle: title, ocrText: ocr)
+    }
+
+    func testOCRTextIsSearchable() {
+        let screenshot = item(kind: .image, ocr: "Invoice #4821 total $99")
+        XCTAssertTrue(ItemSearch.matches(screenshot, query: "invoice"))
+        XCTAssertTrue(ItemSearch.matches(screenshot, query: "4821"))
+        XCTAssertFalse(ItemSearch.matches(screenshot, query: "receipt"))
+    }
+
+    func testTitleAndTextSearchable() {
+        XCTAssertTrue(ItemSearch.matches(item(text: "the quick brown fox"), query: "BROWN"))
+        XCTAssertTrue(ItemSearch.matches(item(title: "My Snippet"), query: "snippet"))
+    }
+
+    func testFilterAndEmptyQuery() {
+        let items = [item(ocr: "alpha"), item(ocr: "beta"), item(text: "alphabet")]
+        XCTAssertEqual(ItemSearch.filter(items, query: "alpha").count, 2)
+        XCTAssertEqual(ItemSearch.filter(items, query: "").count, 3)
+    }
+}
+
 final class CaptureRulesTests: XCTestCase {
     func testCaptureRoutesByRuleWhenEnabled() async throws {
         let store = try PersistentStore.inMemory()

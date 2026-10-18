@@ -38,6 +38,8 @@ enum ClipModel {
             attr("fingerprint", .stringAttributeType),
             attr("sourceBundleID", .stringAttributeType, optional: true),
             attr("listID", .UUIDAttributeType, optional: true),
+            attr("userTitle", .stringAttributeType, optional: true),
+            attr("ocrText", .stringAttributeType, optional: true),
         ]
 
         // MARK: ItemData attributes

@@ -13,6 +13,7 @@ final class AppEnvironment {
     let pasteBack: PasteBack
     let thumbnailProvider: QuickLookThumbnailProvider
     let mediaInfoProvider: AVMediaInfoProvider
+    let quickLook: QuickLookPresenter
 
     init() throws {
         let store = try PersistentStore.onDisk(name: "Shelf")
@@ -25,10 +26,12 @@ final class AppEnvironment {
         self.capture = CaptureManager(
             pasteboard: pasteboard,
             repository: repository,
-            config: CaptureConfig(pollInterval: 0.3, ignoredBundleIDs: [])
+            config: CaptureConfig(pollInterval: 0.3, ignoredBundleIDs: []),
+            recognizer: VisionTextRecognizer()   // OCR for image search
         )
         self.pasteBack = PasteBack(pasteboard: pasteboard)
         self.thumbnailProvider = QuickLookThumbnailProvider()
         self.mediaInfoProvider = AVMediaInfoProvider()
+        self.quickLook = QuickLookPresenter()
     }
 }

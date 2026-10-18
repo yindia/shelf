@@ -43,3 +43,9 @@ public protocol ThumbnailProviding: Sendable {
 public protocol MediaInfoProviding: Sendable {
     func mediaInfo(for fileURL: URL, kind: ClipKind) async -> MediaInfo
 }
+
+/// Recognizes text in an image (OCR). Implemented by the platform with Vision.
+public protocol TextRecognizing: Sendable {
+    /// Returns recognized text for PNG/TIFF image bytes, or nil if none.
+    func recognizeText(in imageData: Data) async -> String?
+}

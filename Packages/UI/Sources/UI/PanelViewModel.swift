@@ -20,7 +20,7 @@ public final class PanelViewModel: ObservableObject {
     private let itemRepo: ItemRepositoryReading
     private let itemWriter: ItemRepositoryWriting?
     private let collectionRepo: CollectionRepository
-    private let onPaste: @MainActor (ClipItemModel) -> Void
+    private let onPaste: @MainActor (ClipItemModel, Bool) -> Void
     private let onCopy: @MainActor (ClipItemModel) -> Void
     private let onDismiss: @MainActor () -> Void
     private var itemsTask: Task<Void, Never>?
@@ -29,7 +29,7 @@ public final class PanelViewModel: ObservableObject {
         itemRepository: ItemRepositoryReading,
         itemWriter: ItemRepositoryWriting? = nil,
         collectionRepository: CollectionRepository,
-        onPaste: @escaping @MainActor (ClipItemModel) -> Void,
+        onPaste: @escaping @MainActor (ClipItemModel, Bool) -> Void,
         onCopy: @escaping @MainActor (ClipItemModel) -> Void = { _ in },
         onDismiss: @escaping @MainActor () -> Void,
         autoRules: AutoCategorizationRules = AutoCategorizationRules.defaults,
@@ -68,8 +68,21 @@ public final class PanelViewModel: ObservableObject {
     /// Items after applying the search filter.
     public var visibleItems: [ClipItemModel] {
         guard isSearching, !searchText.isEmpty else { return items }
-        let needle = searchText.lowercased()
-        return items.filter { ($0.plainText ?? "").lowercased().contains(needle) }
+        return ItemSearch.filter(items, query: searchText)   // text + title + OCR + URL
+    }
+
+    @Published public var editingItem: ClipItemModel?
+
+    /// Rename a clip and/or replace its plain text; persists to the store.
+    public func applyEdit(_ item: ClipItemModel, title: String?, text: String?) {
+        guard let itemWriter else { return }
+        Task {
+            try? await itemWriter.setTitle(itemID: item.id, title: title?.isEmpty == true ? nil : title)
+            if let text, !text.isEmpty { try? await itemWriter.setText(itemID: item.id, text: text) }
+            if let latest = try? await itemRepo.recentItems(limit: 200, listID: selectedCollectionID) {
+                items = latest
+            }
+        }
     }
 
     public func activate() {
@@ -118,17 +131,17 @@ public final class PanelViewModel: ObservableObject {
         selectedIndex = min(max(index, 0), count - 1)
     }
 
-    public func activateNumber(_ number: Int) {
-        activate(index: number - 1)
+    public func activateNumber(_ number: Int, plainText: Bool = false) {
+        activate(index: number - 1, plainText: plainText)
     }
 
-    public func activateSelection() {
-        activate(index: selectedIndex)
+    public func activateSelection(plainText: Bool = false) {
+        activate(index: selectedIndex, plainText: plainText)
     }
 
     /// Paste a specific item (context menu / shared with Return + double-click).
-    public func activate(item: ClipItemModel) {
-        onPaste(item)
+    public func activate(item: ClipItemModel, plainText: Bool = false) {
+        onPaste(item, plainText)
     }
 
     /// Copy an item back to the pasteboard without pasting or dismissing.
@@ -144,11 +157,17 @@ public final class PanelViewModel: ObservableObject {
     }
 
     /// Single entry point for Return, double-click, and ⌘-number: selects then pastes.
-    public func activate(index: Int) {
+    public func activate(index: Int, plainText: Bool = false) {
         let visible = visibleItems
         guard visible.indices.contains(index) else { return }
         selectedIndex = index
-        onPaste(visible[index])
+        onPaste(visible[index], plainText)
+    }
+
+    /// The item currently under the keyboard selection (for Quick Look).
+    public var selectedItem: ClipItemModel? {
+        let visible = visibleItems
+        return visible.indices.contains(selectedIndex) ? visible[selectedIndex] : nil
     }
 
     public func toggleSearch() {

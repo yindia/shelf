@@ -12,6 +12,24 @@ struct CardContextMenu: View {
     private var fileURL: URL? {
         item.fileURLString.flatMap(URL.init(string:)).flatMap { $0.isFileURL ? $0 : nil }
     }
+    private var isImage: Bool {
+        item.data(for: UTIs.png) != nil || item.data(for: UTIs.jpeg) != nil || item.data(for: UTIs.tiff) != nil
+    }
+
+    /// Writes the image to a temp file and puts its file URL on the pasteboard
+    /// so other apps receive it as a file (paste/drag as file).
+    private func copyAsFile(_ item: ClipItemModel) {
+        guard let data = item.data(for: UTIs.png) ?? item.data(for: UTIs.jpeg) ?? item.data(for: UTIs.tiff)
+        else { return }
+        let ext = item.data(for: UTIs.png) != nil ? "png" : (item.data(for: UTIs.jpeg) != nil ? "jpg" : "tiff")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Shelf-\(item.id).\(ext)")
+        guard (try? data.write(to: url)) != nil else { return }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects([url as NSURL])
+    }
+
     private var inUserCollection: Bool {
         guard let listID = item.listID else { return false }
         return listID != CollectionSeed.historyID
@@ -20,6 +38,11 @@ struct CardContextMenu: View {
     var body: some View {
         Button("Copy") { model.copy(item) }
         Button("Paste") { model.activate(item: item) }
+        Button("Paste without Formatting") { model.activate(item: item, plainText: true) }
+        Button("Edit…") { model.editingItem = item }
+        if isImage {
+            Button("Copy as File") { copyAsFile(item) }
+        }
 
         Menu("Move to") {
             ForEach(model.collections) { collection in
