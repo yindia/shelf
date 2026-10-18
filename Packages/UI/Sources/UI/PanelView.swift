@@ -91,7 +91,11 @@ public struct PanelView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if model.visibleItems.isEmpty {
+        if model.isLoading && model.items.isEmpty && !model.isSearching {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if model.visibleItems.isEmpty {
             emptyState
         } else {
             carousel
@@ -111,6 +115,7 @@ public struct PanelView: View {
                             headerBand: Theme.headerBandColor(collection: model.color(for: item.listID), kind: item.kind, increaseContrast: contrast == .increased)
                         )
                         .id(index)
+                        .onAppear { model.loadMoreIfNeeded(currentIndex: index) }
                         .draggable(item.id.uuidString)
                         .onTapGesture(count: 2) { model.activate(index: index) }
                         .onTapGesture { model.selectIndex(index) }

@@ -78,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Show Shelf  (⇧⌘V)", action: #selector(togglePanel), keyEquivalent: "")
         menu.addItem(withTitle: "New Text Item", action: #selector(newTextItem), keyEquivalent: "n")
         pauseMenuItem = menu.addItem(withTitle: "Pause Capture", action: #selector(togglePause), keyEquivalent: "p")
+        menu.addItem(withTitle: "Clear All History…", action: #selector(clearAll), keyEquivalent: "")
         menu.addItem(.separator())
 
         // Settings submenu.
@@ -148,6 +149,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             panelController?.show()
         }
         model?.beginNewText()
+    }
+
+    @objc private func clearAll() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Clear all clipboard history?"
+        alert.informativeText = "This permanently deletes every saved clip. This cannot be undone."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear All")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { model?.clearAll() }
     }
 
     @objc private func togglePause() {

@@ -24,6 +24,13 @@ public final class PanelViewModel: ObservableObject {
     @Published public var autoRules: AutoCategorizationRules
     private let onRulesChanged: @MainActor (AutoCategorizationRules) -> Void
 
+    /// Pagination: start small, grow as the user scrolls.
+    private let pageSize = 30
+    private var pageLimit = 30
+    private var isLoadingMore = false
+    /// True until a collection's first page has loaded (shows a spinner).
+    @Published public private(set) var isLoading = false
+
     private let itemRepo: ItemRepositoryReading
     private let itemWriter: ItemRepositoryWriting?
     private let collectionRepo: CollectionRepository
@@ -189,10 +196,28 @@ public final class PanelViewModel: ObservableObject {
         guard id != selectedCollectionID else { return }
         selectedCollectionID = id
         selectedIndex = 0
+        pageLimit = pageSize   // reset pagination for the new collection
         // Clear immediately so no stale cards linger behind the empty state;
         // the resubscribed stream repopulates with the new collection's items.
         items = []
         subscribe(to: id)
+    }
+
+    /// Grows the page when the user nears the end of the loaded cards.
+    public func loadMoreIfNeeded(currentIndex: Int) {
+        guard !isSearching, !isLoadingMore else { return }
+        // Only page up when a full page is loaded (more likely exist).
+        guard items.count >= pageLimit, currentIndex >= items.count - 5 else { return }
+        isLoadingMore = true
+        pageLimit += pageSize
+        subscribe(to: selectedCollectionID)
+    }
+
+    /// Delete every clip (Clear All).
+    public func clearAll() {
+        guard let itemWriter else { return }
+        items = []
+        Task { try? await itemWriter.deleteAll() }
     }
 
     private func loadCollections() async {
@@ -204,10 +229,13 @@ public final class PanelViewModel: ObservableObject {
 
     private func subscribe(to listID: UUID) {
         itemsTask?.cancel()
+        if items.isEmpty { isLoading = true }
         itemsTask = Task { [weak self] in
             guard let self else { return }
-            for await latest in self.itemRepo.changes(limit: 200, listID: listID) {
+            for await latest in self.itemRepo.changes(limit: self.pageLimit, listID: listID) {
                 self.items = latest
+                self.isLoading = false
+                self.isLoadingMore = false
                 self.selectedIndex = min(self.selectedIndex, max(0, latest.count - 1))
                 self.applyPendingJump()
             }
