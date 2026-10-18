@@ -1,5 +1,5 @@
 import Core
-import MapKit
+@preconcurrency import MapKit
 import SwiftUI
 
 /// Renders a static map image for a place via `MKMapSnapshotter`. Falls back to a
