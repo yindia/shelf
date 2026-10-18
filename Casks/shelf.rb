@@ -1,6 +1,6 @@
 cask "shelf" do
-  version "0.0.3"
-  sha256 "4db11bc9a4207e801270dbeaab424da7481e0af9647041a736b1d5316aa8183b"
+  version "0.0.1"
+  sha256 "9721e99d0675531e152596f7ba862eea76a50c6794f006d5392e3536cd6ba328"
 
   url "https://github.com/yindia/shelf/releases/download/v#{version}/Shelf.dmg"
   name "Shelf"
