@@ -58,6 +58,15 @@ jobs:
           name: Shelf ${{ steps.ver.outputs.tag }}
           generate_release_notes: true
           files: build/Shelf.dmg
+          body: |
+            ## Shelf ${{ steps.ver.outputs.tag }}
+
+            Download **Shelf.dmg**, open it, and drag **Shelf** to Applications.
+
+            > This build is **ad-hoc signed, not notarized**. On first launch macOS
+            > Gatekeeper will warn. Right-click **Shelf.app → Open**, or run
+            > `xattr -dr com.apple.quarantine /Applications/Shelf.app`.
+            > Grant **Accessibility** when prompted (needed for paste-back).
 
       - name: Update Homebrew cask on main
         run: |
@@ -73,12 +82,3 @@ jobs:
             git commit -m "chore: update Homebrew cask to $VER" Casks/shelf.rb
             git push origin main
           fi
-          body: |
-            ## Shelf ${{ steps.ver.outputs.tag }}
-
-            Download **Shelf.dmg**, open it, and drag **Shelf** to Applications.
-
-            > This build is **ad-hoc signed, not notarized**. On first launch macOS
-            > Gatekeeper will warn. Right-click **Shelf.app → Open**, or run
-            > `xattr -dr com.apple.quarantine /Applications/Shelf.app`.
-            > Grant **Accessibility** when prompted (needed for paste-back).
