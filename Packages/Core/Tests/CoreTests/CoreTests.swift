@@ -288,6 +288,28 @@ final class ItemSearchTests: XCTestCase {
     }
 }
 
+final class RetentionTests: XCTestCase {
+    private func item(ago: TimeInterval, pinned: Bool = false, list: UUID? = nil) -> ClipItemModel {
+        ClipItemModel(id: UUID(), kind: .text, createdAt: Date().addingTimeInterval(-ago),
+                      fingerprint: UUID().uuidString, sourceBundleID: nil, listID: list,
+                      representations: [], userTitle: nil, ocrText: nil, isPinned: pinned)
+    }
+
+    func testExpiry() {
+        let cutoff = Date().addingTimeInterval(-7 * 86_400)
+        XCTAssertTrue(Retention.isExpired(item(ago: 10 * 86_400), cutoff: cutoff))      // old history
+        XCTAssertFalse(Retention.isExpired(item(ago: 1 * 86_400), cutoff: cutoff))      // recent
+        XCTAssertFalse(Retention.isExpired(item(ago: 10 * 86_400, pinned: true), cutoff: cutoff))  // pinned exempt
+        let pinboard = UUID()
+        XCTAssertFalse(Retention.isExpired(item(ago: 10 * 86_400, list: pinboard), cutoff: cutoff)) // pinboard exempt
+    }
+
+    func testWindowCutoff() {
+        XCTAssertNil(RetentionWindow.forever.cutoff())
+        XCTAssertNotNil(RetentionWindow.month.cutoff())
+    }
+}
+
 final class PinSortTests: XCTestCase {
     func testPinnedItemsSortToTop() async throws {
         let store = try PersistentStore.inMemory()

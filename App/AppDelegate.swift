@@ -14,6 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// App that was frontmost when the panel opened — the paste-back target.
     private var previousApp: NSRunningApplication?
     private var isPaused = false
+    private var retention: RetentionWindow = .month
+    private var pruneTimer: Timer?
+    private var didPromptAccessibility = false
+
+    /// Clears history older than the retention window (keeps pinned + pinboards).
+    private func pruneHistory(_ window: RetentionWindow) {
+        retention = window
+        guard let cutoff = window.cutoff(), let environment else { return }
+        Task { try? await environment.repository.prune(olderThan: cutoff) }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -39,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     PrivacyPersistence.save(privacy)
                     self?.panelController?.setVisibleDuringScreenSharing(privacy.showDuringScreenSharing)
                     Task { await environment?.capture.setIgnoreConfidential(privacy.ignoreConfidential) }
+                    self?.pruneHistory(privacy.retention)
                 }
             )
             model.activate()
@@ -60,8 +71,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             Task { await environment.capture.start() }
 
-            // Nudge for Accessibility on first launch (needed for paste-back).
-            _ = AccessibilityPermission.check(prompt: true)
+            // Enforce the retention window now and hourly.
+            self.retention = savedPrivacy.retention
+            self.pruneHistory(savedPrivacy.retention)
+            self.pruneTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                self.pruneHistory(self.retention)
+            }
+
+            // Nudge for Accessibility once on first launch (needed for paste-back).
+            if !AccessibilityPermission.isTrusted {
+                didPromptAccessibility = true
+                _ = AccessibilityPermission.check(prompt: true)
+            }
         } catch {
             NSLog("Shelf failed to start: \(error)")
             NSApp.terminate(nil)
@@ -214,9 +236,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             _ = try environment.pasteBack.paste(item.representations, to: previousApp, plainTextOnly: plainText)
         } catch {
-            // Accessibility not granted: the content is copied (copy-only fallback);
-            // prompt so the next paste can be synthetic.
-            _ = AccessibilityPermission.check(prompt: true)
+            // Accessibility not granted: the content is already on the pasteboard
+            // (copy-only fallback), so just paste manually with ⌘V. Prompt for
+            // access at most once so we don't nag on every use.
+            if !didPromptAccessibility {
+                didPromptAccessibility = true
+                _ = AccessibilityPermission.check(prompt: true)
+            }
         }
     }
 }

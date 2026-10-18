@@ -109,6 +109,7 @@ final class PanelController {
                     NSWorkspace.shared.open(url)
                 }
                 return true
+            case "f": if !model.isSearching { model.toggleSearch() }; return true   // ⌘F search
             default: break
             }
         }
@@ -125,7 +126,10 @@ final class PanelController {
         case 123: model.moveLeft(); return true      // left arrow
         case 124: model.moveRight(); return true     // right arrow
         case 49: onQuickLook?(); return true          // space → Quick Look
-        case 36, 76: model.activateSelection(plainText: plain); return true  // return / keypad enter
+        // Return / keypad enter — Shift pastes as plain text (like Option).
+        case 36, 76:
+            model.activateSelection(plainText: plain || event.modifierFlags.contains(.shift))
+            return true
         case 53:                                       // escape — one-way hide
             if model.isSearching {
                 // First Esc exits search back to the carousel; second Esc hides.

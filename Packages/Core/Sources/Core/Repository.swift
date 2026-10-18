@@ -29,6 +29,8 @@ public protocol ItemRepositoryWriting: Sendable {
     func delete(id: UUID) async throws
     /// Deletes every item (and its blobs).
     func deleteAll() async throws
+    /// Clears history items older than `cutoff` (keeps pinned + pinboard items).
+    func prune(olderThan cutoff: Date) async throws
     /// Refiles an item into a different collection.
     func setList(itemID: UUID, listID: UUID) async throws
     /// Renames an item (nil clears the custom name).
@@ -226,6 +228,26 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
                         object.setValue(listID, forKey: "listID")
                         try context.save()
                     }
+                    continuation.resume(returning: ())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    public func prune(olderThan cutoff: Date) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            store.container.performBackgroundTask { context in
+                do {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "Item")
+                    // Old, unpinned, Clipboard History (listID nil or the history id).
+                    request.predicate = NSPredicate(
+                        format: "createdAt < %@ AND isPinned == NO AND (listID == nil OR listID == %@)",
+                        cutoff as CVarArg, CollectionSeed.historyID as CVarArg
+                    )
+                    for object in try context.fetch(request) { context.delete(object) }
+                    try context.save()
                     continuation.resume(returning: ())
                 } catch {
                     continuation.resume(throwing: error)

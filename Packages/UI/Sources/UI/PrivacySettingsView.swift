@@ -26,6 +26,19 @@ struct PrivacySettingsView: View {
                 .font(Theme.footerFont).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
+            Divider()
+
+            HStack {
+                Text("Keep history for")
+                Spacer()
+                Picker("", selection: $settings.retention) {
+                    ForEach(RetentionWindow.allCases, id: \.self) { Text($0.label).tag($0) }
+                }.labelsHidden().frame(width: 140)
+            }
+            Text("Older clips are cleared automatically. Pinned items and pinboards are always kept.")
+                .font(Theme.footerFont).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             HStack {
                 Spacer()
                 Button("Done") { onCommit(settings); onClose() }
