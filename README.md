@@ -29,6 +29,9 @@ AppKit + SwiftUI and Swift 6 strict concurrency.
 - **Power Search** — fuzzy, typo-tolerant matching with intelligent ranking
   (prefix › substring › fuzzy, then recency). Searches text, titles, OCR text,
   and URLs across **all** pinboards.
+- **Global Spotlight-style search** — **⌥⌘Space** opens a centered, floating glass
+  search window (Spotlight/Raycast-style) over your whole history. ↑/↓ to move,
+  Enter to paste, ⌘C to copy, Esc to close.
 - **Filters** — narrow by content **type**, source **app**, **date** (today /
   7 / 30 days), and **pinboard**, shown as removable visual tokens.
 - **Jump to History** — from any search result, **Show in Clipboard / Show in
@@ -56,6 +59,10 @@ AppKit + SwiftUI and Swift 6 strict concurrency.
 - **Show during screen sharing** toggle — hide Shelf from recording, sharing,
   and screenshots (`NSWindow.sharingType`).
 - **Ignore confidential content** — skip items apps mark confidential (passwords).
+- **Exclude apps** — pick apps whose copies are never captured.
+- **Retention window** — keep history for 1 day … forever (default 1 month); old
+  clips auto-clear while **pinned items and pinboards are always kept**.
+- **Pause/Resume (⌘T)** — stop collecting while you handle something sensitive.
 
 ### Feel
 - **Keyboard-first** — ⇧⌘V to summon, ← → to move, ⌘1–9 to pick + paste, ⏎ to
@@ -66,7 +73,7 @@ AppKit + SwiftUI and Swift 6 strict concurrency.
   for Reduce Transparency / Reduce Motion / Increase Contrast.
 
 ### Menu bar
-Show Shelf · New Text Item (⌘N) · Pause/Resume Capture (⌘P) · Clear All History ·
+Show Shelf · New Text Item (⌘N) · Pause/Resume Capture (⌘T) · Clear All History ·
 Settings (Privacy, Auto-Categorization) · About · Help · Quit.
 
 ## How it works

@@ -141,6 +141,14 @@ public enum Theme {
     public static let filterBarHeight: CGFloat = 30
     public static let filterChipOnOpacity: Double = 0.2
 
+    // MARK: Spotlight-style global search window
+    public static let spotlightWidth: CGFloat = 640
+    public static let spotlightFieldHeight: CGFloat = 52
+    public static let spotlightRowHeight: CGFloat = 52
+    public static let spotlightMaxRows: Int = 7
+    public static let spotlightCorner: CGFloat = 18
+    public static let spotlightMaterial: NSVisualEffectView.Material = .hudWindow
+
     // MARK: Header / source icon
     public static let sourceIconSize: CGFloat = 24
     public static let sourceIconCorner: CGFloat = 6

@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var panelController: PanelController?
     private var hotKey: HotKey?
+    private var spotlightHotKey: HotKey?
+    private var spotlight: SpotlightController?
     private var model: PanelViewModel?
     /// App that was frontmost when the panel opened — the paste-back target.
     private var previousApp: NSRunningApplication?
@@ -48,7 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onPrivacyChanged: { [weak self, weak environment] privacy in
                     PrivacyPersistence.save(privacy)
                     self?.panelController?.setVisibleDuringScreenSharing(privacy.showDuringScreenSharing)
-                    Task { await environment?.capture.setIgnoreConfidential(privacy.ignoreConfidential) }
+                    Task {
+                        await environment?.capture.setIgnoreConfidential(privacy.ignoreConfidential)
+                        await environment?.capture.setIgnoredBundleIDs(privacy.excludedApps)
+                    }
                     self?.pruneHistory(privacy.retention)
                 }
             )
@@ -62,12 +67,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.panelController = PanelController(model: model, previewLoader: previewLoader)
             self.panelController?.onQuickLook = { [weak self] in self?.quickLookSelected() }
 
+            // Global Spotlight-style search window (Option+Cmd+Space).
+            let spotlightModel = SpotlightViewModel(
+                itemRepository: environment.repository,
+                collectionRepository: environment.repository,
+                onActivate: { [weak self] item in self?.spotlight?.hide(); self?.paste(item, plainText: false) },
+                onCopy: { [weak self] item in self?.copyOnly(item) },
+                onDismiss: { [weak self] in self?.spotlight?.hide() }
+            )
+            spotlightModel.activate()
+            self.spotlight = SpotlightController(model: spotlightModel)
+
             setUpStatusItem()
             setUpHotKey()
 
             // Apply saved privacy settings.
             self.panelController?.setVisibleDuringScreenSharing(savedPrivacy.showDuringScreenSharing)
-            Task { await environment.capture.setIgnoreConfidential(savedPrivacy.ignoreConfidential) }
+            Task {
+                await environment.capture.setIgnoreConfidential(savedPrivacy.ignoreConfidential)
+                await environment.capture.setIgnoredBundleIDs(savedPrivacy.excludedApps)
+            }
 
             Task { await environment.capture.start() }
 
@@ -101,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "Show Shelf  (⇧⌘V)", action: #selector(togglePanel), keyEquivalent: "")
         menu.addItem(withTitle: "New Text Item", action: #selector(newTextItem), keyEquivalent: "n")
-        pauseMenuItem = menu.addItem(withTitle: "Pause Capture", action: #selector(togglePause), keyEquivalent: "p")
+        pauseMenuItem = menu.addItem(withTitle: "Pause Capture", action: #selector(togglePause), keyEquivalent: "t")
         menu.addItem(withTitle: "Clear All History…", action: #selector(clearAll), keyEquivalent: "")
         menu.addItem(.separator())
 
@@ -202,6 +221,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hotKey = HotKey { [weak self] in self?.togglePanel() }
         hotKey.register(.init(keyCode: HotKeyCodes.v, modifiers: HotKeyCodes.cmd | HotKeyCodes.shift))
         self.hotKey = hotKey
+
+        let spotlightHotKey = HotKey { [weak self] in self?.toggleSpotlight() }
+        spotlightHotKey.register(.init(keyCode: HotKeyCodes.space,
+                                       modifiers: HotKeyCodes.cmd | HotKeyCodes.option), id: 2)
+        self.spotlightHotKey = spotlightHotKey
+    }
+
+    @objc private func toggleSpotlight() {
+        guard let spotlight else { return }
+        if spotlight.isVisible { spotlight.hide() }
+        else { previousApp = NSWorkspace.shared.frontmostApplication; spotlight.show() }
     }
 
     @objc private func togglePanel() {

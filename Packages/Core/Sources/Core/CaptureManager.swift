@@ -101,6 +101,11 @@ public actor CaptureManager {
         config.ignoreConfidential = value
     }
 
+    /// Apps whose copies are never captured (per-app exclusions from settings).
+    public func setIgnoredBundleIDs(_ ids: Set<String>) {
+        config.ignoredBundleIDs = ids
+    }
+
     /// Reads the pasteboard once and persists a new item if warranted.
     /// Exposed `internal` for deterministic testing without the timer.
     func poll() async {

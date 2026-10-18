@@ -8,11 +8,26 @@ public struct PrivacySettings: Sendable, Codable, Equatable {
     public var ignoreConfidential: Bool
     /// How long Clipboard History is kept (pinned + pinboard items are exempt).
     public var retention: RetentionWindow
+    /// Bundle ids of apps whose copies are never captured.
+    public var excludedApps: Set<String>
 
     public init(showDuringScreenSharing: Bool = true, ignoreConfidential: Bool = true,
-                retention: RetentionWindow = .month) {
+                retention: RetentionWindow = .month, excludedApps: Set<String> = []) {
         self.showDuringScreenSharing = showDuringScreenSharing
         self.ignoreConfidential = ignoreConfidential
         self.retention = retention
+        self.excludedApps = excludedApps
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case showDuringScreenSharing, ignoreConfidential, retention, excludedApps
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        showDuringScreenSharing = try c.decodeIfPresent(Bool.self, forKey: .showDuringScreenSharing) ?? true
+        ignoreConfidential = try c.decodeIfPresent(Bool.self, forKey: .ignoreConfidential) ?? true
+        retention = try c.decodeIfPresent(RetentionWindow.self, forKey: .retention) ?? .month
+        excludedApps = try c.decodeIfPresent(Set<String>.self, forKey: .excludedApps) ?? []
     }
 }
