@@ -7,7 +7,7 @@ BINARY   := .build/$(CONFIG)/ShelfApp
 # Universal (Apple Silicon + Intel) build output.
 UBINARY  := .build/apple/Products/Release/ShelfApp
 
-.PHONY: all build build-universal bundle run test clean dmg dist
+.PHONY: all build build-universal bundle run test clean dmg dist icon
 
 all: bundle
 
@@ -32,6 +32,7 @@ bundle: build
 	mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
 	cp $(BINARY) $(BUNDLE)/Contents/MacOS/ShelfApp
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	cp Resources/AppIcon.icns $(BUNDLE)/Contents/Resources/AppIcon.icns
 	printf 'APPL????' > $(BUNDLE)/Contents/PkgInfo
 	codesign --force --deep \
 		--sign - \
@@ -61,6 +62,13 @@ dmg:
 
 test:
 	cd Packages/Core && swift test
+
+# Regenerate the app icon (Resources/AppIcon.icns).
+icon:
+	mkdir -p build
+	swift Tools/makeicon.swift
+	iconutil -c icns build/AppIcon.iconset -o Resources/AppIcon.icns
+	@echo "Built Resources/AppIcon.icns"
 
 clean:
 	rm -rf .build build
