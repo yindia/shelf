@@ -14,7 +14,6 @@ struct CollectionTabBar: View {
     let onAdd: () -> Void
     /// Drag-and-drop refile: (itemID, destination collectionID).
     let onMove: (UUID, UUID) -> Void
-    var onEditRules: () -> Void = {}
     var onDelete: (UUID) -> Void = { _ in }
 
     @FocusState private var searchFocused: Bool
@@ -39,30 +38,10 @@ struct CollectionTabBar: View {
                 }
                 .scrollClipDisabled()
                 Spacer(minLength: 8)
-                overflowMenu
-                    .fixedSize()
             }
         }
         .frame(height: Theme.tabBarHeight)
         .padding(.horizontal, Theme.panelPadding)
-    }
-
-    private var overflowMenu: some View {
-        HStack(spacing: Theme.tabSpacing) {
-            Menu {
-                Button("Auto-Categorization…", action: onEditRules)
-                Button("Edit Collections…") {}
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.secondaryText)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityLabel("More options")
-        }
     }
 
     private var searchControl: some View {

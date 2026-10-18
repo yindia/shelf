@@ -137,6 +137,9 @@ public enum Theme {
     public static let tabSelectedBgOpacity: Double = 0.16
     /// Drop-target highlight when dragging a card onto a tab.
     public static let tabDropHighlightOpacity: Double = 0.34
+    /// Pinboard-filter row (shown during search).
+    public static let filterBarHeight: CGFloat = 30
+    public static let filterChipOnOpacity: Double = 0.2
 
     // MARK: Header / source icon
     public static let sourceIconSize: CGFloat = 24

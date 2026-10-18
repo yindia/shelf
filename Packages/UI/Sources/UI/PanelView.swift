@@ -30,10 +30,13 @@ public struct PanelView: View {
                     onToggleSearch: { model.toggleSearch() },
                     onAdd: { model.beginCreateCollection() },
                     onMove: { model.move(itemID: $0, to: $1) },
-                    onEditRules: { model.beginEditRules() },
                     onDelete: { model.deleteCollection($0) }
                 )
                 Divider().opacity(0.5)
+                if model.isSearching {
+                    PowerSearchBar(model: model)
+                    Divider().opacity(0.3)
+                }
                 // Rebuild the content subtree on each collection change so no
                 // stale cards survive; swap is instant (no cross-fade).
                 content
@@ -53,6 +56,19 @@ public struct PanelView: View {
                 collections: model.collections,
                 onCommit: { model.commitRules($0) },
                 onClose: { model.isEditingRules = false }
+            )
+        }
+        .sheet(isPresented: $model.isEditingPrivacy) {
+            PrivacySettingsView(
+                settings: model.privacy,
+                onCommit: { model.commitPrivacy($0) },
+                onClose: { model.isEditingPrivacy = false }
+            )
+        }
+        .sheet(isPresented: $model.isCreatingText) {
+            NewTextItemSheet(
+                onCreate: { model.createTextItem($0); model.isCreatingText = false },
+                onCancel: { model.isCreatingText = false }
             )
         }
         .sheet(item: $model.editingItem) { item in

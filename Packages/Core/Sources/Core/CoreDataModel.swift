@@ -40,6 +40,7 @@ enum ClipModel {
             attr("listID", .UUIDAttributeType, optional: true),
             attr("userTitle", .stringAttributeType, optional: true),
             attr("ocrText", .stringAttributeType, optional: true),
+            boolAttr("isPinned", default: false),
         ]
 
         // MARK: ItemData attributes
@@ -101,6 +102,15 @@ enum ClipModel {
         a.name = name
         a.attributeType = type
         a.isOptional = optional
+        return a
+    }
+
+    private static func boolAttr(_ name: String, default value: Bool) -> NSAttributeDescription {
+        let a = NSAttributeDescription()
+        a.name = name
+        a.attributeType = .booleanAttributeType
+        a.isOptional = false
+        a.defaultValue = value
         return a
     }
 

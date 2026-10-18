@@ -40,6 +40,11 @@ final class PanelController {
 
     var isVisible: Bool { panel.isVisible }
 
+    /// Hide/show the panel from screen recording, sharing, and screenshots.
+    func setVisibleDuringScreenSharing(_ visible: Bool) {
+        panel.sharingType = visible ? .readOnly : .none
+    }
+
     func toggle() { isVisible ? hide() : show() }
 
     func show() {
@@ -93,6 +98,20 @@ final class PanelController {
     /// Returns true if the event was consumed.
     private func handle(_ event: NSEvent) -> Bool {
         let plain = event.modifierFlags.contains(.option)   // Option = paste without formatting
+
+        // ⌘-shortcuts that don't target a specific card.
+        if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers?.lowercased() {
+            switch key {
+            case "g": if let item = model.selectedItem { model.jump(to: item) }; return true
+            case "n": model.beginNewText(); return true
+            case "o":
+                if let item = model.selectedItem, item.kind == .link, let url = item.linkURL {
+                    NSWorkspace.shared.open(url)
+                }
+                return true
+            default: break
+            }
+        }
 
         // ⌘1…⌘9 → paste that card.
         if event.modifierFlags.contains(.command),

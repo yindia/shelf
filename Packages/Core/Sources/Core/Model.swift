@@ -99,6 +99,14 @@ public struct ClipItemDraft: Sendable, Equatable {
         self.createdAt = createdAt
         self.ocrText = ocrText
     }
+
+    /// Builds a draft for a user-created plain-text clip (New Text Item).
+    public static func text(_ string: String, listID: UUID = CollectionSeed.historyID,
+                            sourceBundleID: String = "com.example.shelf") -> ClipItemDraft {
+        let reps = [CapturedRepresentation(typeIdentifier: UTIs.utf8PlainText, data: Data(string.utf8))]
+        return ClipItemDraft(kind: .text, fingerprint: Fingerprint.make(reps),
+                             representations: reps, sourceBundleID: sourceBundleID, listID: listID)
+    }
 }
 
 /// The plain, `Sendable` model the UI sees. Views never touch `NSManagedObject`.
@@ -114,6 +122,8 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
     public let userTitle: String?
     /// OCR-recognized text from an image, indexed for search.
     public let ocrText: String?
+    /// Pinned items sort to the top of their collection.
+    public let isPinned: Bool
 
     public init(
         id: UUID,
@@ -124,7 +134,8 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         listID: UUID?,
         representations: [CapturedRepresentation],
         userTitle: String? = nil,
-        ocrText: String? = nil
+        ocrText: String? = nil,
+        isPinned: Bool = false
     ) {
         self.id = id
         self.kind = kind
@@ -135,6 +146,7 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         self.representations = representations
         self.userTitle = userTitle
         self.ocrText = ocrText
+        self.isPinned = isPinned
     }
 
     /// Returns the bytes for an exact UTI if present.

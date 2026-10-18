@@ -8,15 +8,19 @@ public struct CaptureConfig: Sendable {
     public var ignoredBundleIDs: Set<String>
     /// Collection new captures are filed into (the default history collection).
     public var defaultListID: UUID
+    /// Skip content marked confidential (nspasteboard concealed type).
+    public var ignoreConfidential: Bool
 
     public init(
         pollInterval: TimeInterval = 0.3,
         ignoredBundleIDs: Set<String> = [],
-        defaultListID: UUID = CollectionSeed.historyID
+        defaultListID: UUID = CollectionSeed.historyID,
+        ignoreConfidential: Bool = true
     ) {
         self.pollInterval = pollInterval
         self.ignoredBundleIDs = ignoredBundleIDs
         self.defaultListID = defaultListID
+        self.ignoreConfidential = ignoreConfidential
     }
 }
 
@@ -28,7 +32,7 @@ public actor CaptureManager {
     private let pasteboard: PasteboardReading
     private let repository: ItemRepositoryWriting
     private let classifier: Classifier
-    private let config: CaptureConfig
+    private var config: CaptureConfig
     /// Optional OCR engine; when set, image captures are indexed for search.
     private let recognizer: TextRecognizing?
 
@@ -92,6 +96,11 @@ public actor CaptureManager {
         self.rules = rules
     }
 
+    /// Toggle whether confidential (concealed) content is ignored.
+    public func setIgnoreConfidential(_ value: Bool) {
+        config.ignoreConfidential = value
+    }
+
     /// Reads the pasteboard once and persists a new item if warranted.
     /// Exposed `internal` for deterministic testing without the timer.
     func poll() async {
@@ -101,7 +110,8 @@ public actor CaptureManager {
         lastChangeCount = current
 
         guard let snapshot = pasteboard.snapshot() else { return }
-        guard !snapshot.isConcealed, !snapshot.isTransient else { return }
+        guard !snapshot.isTransient else { return }
+        if config.ignoreConfidential, snapshot.isConcealed { return }
         if let bundleID = snapshot.sourceBundleID, config.ignoredBundleIDs.contains(bundleID) {
             return
         }

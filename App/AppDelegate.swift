@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.environment = environment
 
             let savedRules = AutoRulesPersistence.load()
+            let savedPrivacy = PrivacyPersistence.load()
             let model = PanelViewModel(
                 itemRepository: environment.repository,
                 itemWriter: environment.repository,
@@ -32,6 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onRulesChanged: { [weak environment] rules in
                     AutoRulesPersistence.save(rules)
                     Task { await environment?.capture.setRules(rules) }
+                },
+                privacy: savedPrivacy,
+                onPrivacyChanged: { [weak self, weak environment] privacy in
+                    PrivacyPersistence.save(privacy)
+                    self?.panelController?.setVisibleDuringScreenSharing(privacy.showDuringScreenSharing)
+                    Task { await environment?.capture.setIgnoreConfidential(privacy.ignoreConfidential) }
                 }
             )
             model.activate()
@@ -46,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             setUpStatusItem()
             setUpHotKey()
+
+            // Apply saved privacy settings.
+            self.panelController?.setVisibleDuringScreenSharing(savedPrivacy.showDuringScreenSharing)
+            Task { await environment.capture.setIgnoreConfidential(savedPrivacy.ignoreConfidential) }
 
             Task { await environment.capture.start() }
 
@@ -65,15 +76,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(withTitle: "Show Shelf  (⇧⌘V)", action: #selector(togglePanel), keyEquivalent: "")
+        menu.addItem(withTitle: "New Text Item", action: #selector(newTextItem), keyEquivalent: "n")
         pauseMenuItem = menu.addItem(withTitle: "Pause Capture", action: #selector(togglePause), keyEquivalent: "p")
         menu.addItem(.separator())
+
+        // Settings submenu.
+        let settings = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
+        let settingsMenu = NSMenu()
+        settingsMenu.addItem(withTitle: "Privacy…", action: #selector(openPrivacy), keyEquivalent: "")
+        settingsMenu.addItem(withTitle: "Auto-Categorization…", action: #selector(openRules), keyEquivalent: "")
+        settingsMenu.items.forEach { $0.target = self }
+        settings.submenu = settingsMenu
+        menu.addItem(settings)
+
+        menu.addItem(withTitle: "About Shelf", action: #selector(showAbout), keyEquivalent: "")
+        menu.addItem(withTitle: "Shelf Help", action: #selector(openHelp), keyEquivalent: "")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Shelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.items.forEach { $0.target = self }
+        menu.items.forEach { if $0.target == nil { $0.target = self } }
         item.menu = menu
         statusItem = item
     }
 
+    // MARK: Menu actions
+
+    /// Shows the panel (so the sheet has a window to attach to) then runs `action`.
+    private func presentingPanel(_ action: @escaping () -> Void) {
+        if panelController?.isVisible != true {
+            previousApp = NSWorkspace.shared.frontmostApplication
+            panelController?.show()
+        }
+        action()
+    }
+
+    @objc private func openPrivacy() { presentingPanel { [weak self] in self?.model?.beginEditPrivacy() } }
+    @objc private func openRules() { presentingPanel { [weak self] in self?.model?.beginEditRules() } }
+
+    @objc private func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "Shelf",
+            .applicationVersion: version,
+            .credits: NSAttributedString(
+                string: """
+                Your clipboard, with superpowers.
+
+                Shelf keeps everything you copy — text, links, images, files, \
+                colors, and code — on a fast, keyboard-first glass shelf. \
+                Organize clips into pinboards, find anything instantly with \
+                Power Search (including text inside screenshots), preview with \
+                Quick Look, and paste it back anywhere.
+
+                github.com/yindia/shelf
+                """,
+                attributes: [.font: NSFont.systemFont(ofSize: 11),
+                             .foregroundColor: NSColor.secondaryLabelColor]
+            ),
+        ])
+    }
+
+    @objc private func openHelp() {
+        if let url = URL(string: "https://github.com/yindia/shelf") { NSWorkspace.shared.open(url) }
+    }
+
     private var pauseMenuItem: NSMenuItem?
+
+    @objc private func newTextItem() {
+        if panelController?.isVisible != true {
+            previousApp = NSWorkspace.shared.frontmostApplication
+            panelController?.show()
+        }
+        model?.beginNewText()
+    }
 
     @objc private func togglePause() {
         isPaused.toggle()

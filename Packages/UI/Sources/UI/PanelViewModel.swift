@@ -7,6 +7,10 @@ import Foundation
 @MainActor
 public final class PanelViewModel: ObservableObject {
     @Published public private(set) var items: [ClipItemModel] = []
+    /// Every item across all collections — the search corpus.
+    @Published public private(set) var allItems: [ClipItemModel] = []
+    /// Structured Power Search filters (type / app / pinboard / date).
+    @Published public var filters = SearchFilters()
     @Published public private(set) var collections: [Collection] = []
     @Published public var selectedCollectionID: UUID
     @Published public var selectedIndex: Int = 0
@@ -14,6 +18,9 @@ public final class PanelViewModel: ObservableObject {
     @Published public var searchText = ""
     @Published public var isCreatingCollection = false
     @Published public var isEditingRules = false
+    @Published public var isEditingPrivacy = false
+    @Published public var privacy: PrivacySettings
+    private let onPrivacyChanged: @MainActor (PrivacySettings) -> Void
     @Published public var autoRules: AutoCategorizationRules
     private let onRulesChanged: @MainActor (AutoCategorizationRules) -> Void
 
@@ -33,7 +40,9 @@ public final class PanelViewModel: ObservableObject {
         onCopy: @escaping @MainActor (ClipItemModel) -> Void = { _ in },
         onDismiss: @escaping @MainActor () -> Void,
         autoRules: AutoCategorizationRules = AutoCategorizationRules.defaults,
-        onRulesChanged: @escaping @MainActor (AutoCategorizationRules) -> Void = { _ in }
+        onRulesChanged: @escaping @MainActor (AutoCategorizationRules) -> Void = { _ in },
+        privacy: PrivacySettings = PrivacySettings(),
+        onPrivacyChanged: @escaping @MainActor (PrivacySettings) -> Void = { _ in }
     ) {
         self.itemRepo = itemRepository
         self.itemWriter = itemWriter
@@ -44,9 +53,16 @@ public final class PanelViewModel: ObservableObject {
         self.onDismiss = onDismiss
         self.autoRules = autoRules
         self.onRulesChanged = onRulesChanged
+        self.privacy = privacy
+        self.onPrivacyChanged = onPrivacyChanged
     }
 
     public func beginEditRules() { isEditingRules = true }
+    public func beginEditPrivacy() { isEditingPrivacy = true }
+    public func commitPrivacy(_ settings: PrivacySettings) {
+        privacy = settings
+        onPrivacyChanged(settings)
+    }
 
     /// Persist + apply rule changes (pushes to the capture pipeline).
     public func commitRules(_ rules: AutoCategorizationRules) {
@@ -67,11 +83,77 @@ public final class PanelViewModel: ObservableObject {
 
     /// Items after applying the search filter.
     public var visibleItems: [ClipItemModel] {
-        guard isSearching, !searchText.isEmpty else { return items }
-        return ItemSearch.filter(items, query: searchText)   // text + title + OCR + URL
+        guard isSearching else { return items }
+        // Power Search: spans all pinboards, fuzzy text + filters, ranked.
+        return PowerSearch.run(allItems, text: searchText, filters: filters)
+    }
+
+    /// Distinct source apps present in the corpus (for the App filter menu).
+    public var availableApps: [String] {
+        Array(Set(allItems.compactMap(\.sourceBundleID))).sorted()
+    }
+
+    public func togglePinboardFilter(_ id: UUID) { toggle(&filters.pinboards, id) }
+    public func toggleKind(_ kind: ClipKind) { toggle(&filters.kinds, kind) }
+    public func toggleApp(_ app: String) { toggle(&filters.apps, app) }
+    public func setDate(_ date: DateFilter) { filters.date = date; selectedIndex = 0 }
+    public func clearFilters() { filters = SearchFilters(); selectedIndex = 0 }
+
+    private func toggle<T: Hashable>(_ set: inout Set<T>, _ value: T) {
+        if set.contains(value) { set.remove(value) } else { set.insert(value) }
+        selectedIndex = 0
     }
 
     @Published public var editingItem: ClipItemModel?
+    @Published public var isCreatingText = false
+
+    public func beginNewText() { isCreatingText = true }
+
+    /// Pin/unpin a clip (pinned sorts to the top).
+    public func setPinned(_ item: ClipItemModel, pinned: Bool) {
+        guard let itemWriter else { return }
+        Task { try? await itemWriter.setPinned(itemID: item.id, pinned: pinned); await refresh() }
+    }
+
+    /// Create a new plain-text clip in the current pinboard (or History).
+    public func createTextItem(_ text: String) {
+        guard let itemWriter, !text.isEmpty else { return }
+        let list = selectedCollectionID
+        Task { _ = try? await itemWriter.insert(.text(text, listID: list)); await refresh() }
+    }
+
+    /// Replace one representation's bytes (image rotate / color edit).
+    public func replaceRepresentation(_ item: ClipItemModel, type: String, data: Data) {
+        guard let itemWriter else { return }
+        Task { try? await itemWriter.setRepresentation(itemID: item.id, typeIdentifier: type, data: data); await refresh() }
+    }
+
+    private func refresh() async {
+        if let latest = try? await itemRepo.recentItems(limit: 200, listID: selectedCollectionID) {
+            items = latest
+        }
+    }
+    /// Set while jumping to an item; resolved to a selection once its collection loads.
+    private var pendingJumpID: UUID?
+
+    /// "Jump to History": leave search and reveal the item in its collection
+    /// (Clipboard History or its pinboard), with everything around it in place.
+    public func jump(to item: ClipItemModel) {
+        if isSearching { isSearching = false; searchText = "" }
+        pendingJumpID = item.id
+        let target = item.listID ?? CollectionSeed.historyID
+        if target == selectedCollectionID {
+            applyPendingJump()           // already in this collection
+        } else {
+            selectCollection(target)     // resubscribe; jump applied when items arrive
+        }
+    }
+
+    private func applyPendingJump() {
+        guard let id = pendingJumpID, let index = items.firstIndex(where: { $0.id == id }) else { return }
+        selectedIndex = index
+        pendingJumpID = nil
+    }
 
     /// Rename a clip and/or replace its plain text; persists to the store.
     public func applyEdit(_ item: ClipItemModel, title: String?, text: String?) {
@@ -88,6 +170,19 @@ public final class PanelViewModel: ObservableObject {
     public func activate() {
         Task { await loadCollections() }
         subscribe(to: selectedCollectionID)
+        subscribeAll()
+    }
+
+    private var allTask: Task<Void, Never>?
+    /// Always-on stream of every item, used as the cross-pinboard search corpus.
+    private func subscribeAll() {
+        guard allTask == nil else { return }
+        allTask = Task { [weak self] in
+            guard let self else { return }
+            for await latest in self.itemRepo.changes(limit: 500, listID: nil) {
+                self.allItems = latest
+            }
+        }
     }
 
     public func selectCollection(_ id: UUID) {
@@ -114,11 +209,12 @@ public final class PanelViewModel: ObservableObject {
             for await latest in self.itemRepo.changes(limit: 200, listID: listID) {
                 self.items = latest
                 self.selectedIndex = min(self.selectedIndex, max(0, latest.count - 1))
+                self.applyPendingJump()
             }
         }
     }
 
-    deinit { itemsTask?.cancel() }
+    deinit { itemsTask?.cancel(); allTask?.cancel() }
 
     // MARK: Intents
 
@@ -172,7 +268,8 @@ public final class PanelViewModel: ObservableObject {
 
     public func toggleSearch() {
         isSearching.toggle()
-        if !isSearching { searchText = "" }
+        if !isSearching { searchText = ""; filters = SearchFilters() }
+        selectedIndex = 0
     }
 
     public func beginCreateCollection() { isCreatingCollection = true }

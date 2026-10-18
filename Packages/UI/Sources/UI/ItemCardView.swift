@@ -80,6 +80,9 @@ struct ItemCardView: View {
                     .opacity(0.85)
             }
             Spacer()
+            if item.isPinned {
+                Image(systemName: "pin.fill").font(.caption2).opacity(0.9)
+            }
             sourceBadge
         }
         .foregroundStyle(.white)

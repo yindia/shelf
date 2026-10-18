@@ -288,6 +288,66 @@ final class ItemSearchTests: XCTestCase {
     }
 }
 
+final class PinSortTests: XCTestCase {
+    func testPinnedItemsSortToTop() async throws {
+        let store = try PersistentStore.inMemory()
+        let repo = CoreDataItemRepository(store: store)
+        _ = try await repo.insert(ClipItemDraft.text("first"))
+        let second = try await repo.insert(ClipItemDraft.text("second"))
+        _ = try await repo.insert(ClipItemDraft.text("third"))   // newest
+
+        try await repo.setPinned(itemID: second!.id, pinned: true)
+        let items = try await repo.recentItems(limit: 10, listID: nil)
+        XCTAssertEqual(items.first?.id, second?.id, "pinned item is first despite being older")
+        XCTAssertTrue(items.first?.isPinned == true)
+    }
+
+    func testNewTextItemInserts() async throws {
+        let store = try PersistentStore.inMemory()
+        let repo = CoreDataItemRepository(store: store)
+        let created = try await repo.insert(ClipItemDraft.text("hello from new item"))
+        XCTAssertEqual(created?.kind, .text)
+        XCTAssertEqual(created?.plainText, "hello from new item")
+    }
+}
+
+final class PowerSearchTests: XCTestCase {
+    private func make(_ kind: ClipKind, text: String? = nil, ocr: String? = nil,
+                     app: String? = nil, ago: TimeInterval = 0) -> ClipItemModel {
+        let reps = text.map { [CapturedRepresentation(typeIdentifier: UTIs.utf8PlainText, data: Data($0.utf8))] } ?? []
+        return ClipItemModel(id: UUID(), kind: kind, createdAt: Date().addingTimeInterval(-ago),
+                             fingerprint: UUID().uuidString, sourceBundleID: app, listID: nil,
+                             representations: reps, userTitle: nil, ocrText: ocr)
+    }
+
+    func testTypoTolerance() {
+        let items = [make(.link, text: "https://github.com/apple/swift")]
+        XCTAssertEqual(PowerSearch.run(items, text: "githb", filters: SearchFilters()).count, 1)
+        XCTAssertEqual(PowerSearch.run(items, text: "gtimhub", filters: SearchFilters()).count, 1)
+        XCTAssertTrue(PowerSearch.run(items, text: "zzzz", filters: SearchFilters()).isEmpty)
+    }
+
+    func testKindAndAppFilters() {
+        let items = [make(.link, text: "alpha", app: "com.apple.Safari"),
+                     make(.image, ocr: "alpha", app: "com.apple.Photos")]
+        XCTAssertEqual(PowerSearch.run(items, text: "alpha", filters: SearchFilters(kinds: [.image])).count, 1)
+        XCTAssertEqual(PowerSearch.run(items, text: "", filters: SearchFilters(apps: ["com.apple.Safari"])).count, 1)
+    }
+
+    func testDateFilter() {
+        let items = [make(.text, text: "x", ago: 0), make(.text, text: "x", ago: 10 * 86_400)]
+        XCTAssertEqual(PowerSearch.run(items, text: "x", filters: SearchFilters(date: .last7Days)).count, 1)
+        XCTAssertEqual(PowerSearch.run(items, text: "x", filters: SearchFilters(date: .any)).count, 2)
+    }
+
+    func testRankingPrefixBeatsFuzzyAndRecency() {
+        let exact = make(.text, text: "swift playground", ago: 1000)
+        let fuzzy = make(.text, text: "swfit notes", ago: 0)
+        let result = PowerSearch.run([fuzzy, exact], text: "swift", filters: SearchFilters())
+        XCTAssertEqual(result.first?.id, exact.id, "prefix match ranks above fuzzy")
+    }
+}
+
 final class CaptureRulesTests: XCTestCase {
     func testCaptureRoutesByRuleWhenEnabled() async throws {
         let store = try PersistentStore.inMemory()

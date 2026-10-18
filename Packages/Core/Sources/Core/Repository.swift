@@ -33,6 +33,10 @@ public protocol ItemRepositoryWriting: Sendable {
     func setTitle(itemID: UUID, title: String?) async throws
     /// Replaces an item's plain-text content (Edit in place).
     func setText(itemID: UUID, text: String) async throws
+    /// Pins/unpins an item (pinned sorts to the top).
+    func setPinned(itemID: UUID, pinned: Bool) async throws
+    /// Replaces the bytes of one representation (image rotate, color edit).
+    func setRepresentation(itemID: UUID, typeIdentifier: String, data: Data) async throws
 }
 
 public enum RepositoryError: Error {
@@ -160,6 +164,19 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
         try await mutate(itemID: itemID) { $0.setValue(title, forKey: "userTitle") }
     }
 
+    public func setPinned(itemID: UUID, pinned: Bool) async throws {
+        try await mutate(itemID: itemID) { $0.setValue(pinned, forKey: "isPinned") }
+    }
+
+    public func setRepresentation(itemID: UUID, typeIdentifier: String, data: Data) async throws {
+        try await mutate(itemID: itemID) { object in
+            let reps = (object.value(forKey: "representations") as? Set<NSManagedObject>) ?? []
+            if let rep = reps.first(where: { ($0.value(forKey: "typeIdentifier") as? String) == typeIdentifier }) {
+                rep.setValue(data, forKey: "data")
+            }
+        }
+    }
+
     public func setText(itemID: UUID, text: String) async throws {
         try await mutate(itemID: itemID) { object in
             // Replace the plain-text representation blob in place.
@@ -237,7 +254,11 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
 
     private static func fetchRecent(limit: Int, listID: UUID?, in context: NSManagedObjectContext) throws -> [ClipItemModel] {
         let request = NSFetchRequest<NSManagedObject>(entityName: "Item")
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+        // Pinned first, then most-recent.
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "isPinned", ascending: false),
+            NSSortDescriptor(key: "createdAt", ascending: false),
+        ]
         request.fetchLimit = limit
         // The default history collection (or nil) shows everything.
         if let listID, listID != CollectionSeed.historyID {
@@ -273,7 +294,8 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
             listID: object.value(forKey: "listID") as? UUID,
             representations: reps,
             userTitle: object.value(forKey: "userTitle") as? String,
-            ocrText: object.value(forKey: "ocrText") as? String
+            ocrText: object.value(forKey: "ocrText") as? String,
+            isPinned: object.value(forKey: "isPinned") as? Bool ?? false
         )
     }
 

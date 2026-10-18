@@ -24,7 +24,7 @@
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Shelf sample.</string>
+    <string>© 2026 Shelf. Open source under the MIT License.</string>
     <!-- Usage strings for pasteboard access on recent macOS. -->
     <key>NSPasteboardUsageDescription</key>
     <string>Shelf reads the clipboard to build your copy history.</string>
