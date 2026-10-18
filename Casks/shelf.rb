@@ -7,9 +7,15 @@ cask "shelf" do
   desc "Native macOS clipboard manager with a glass card shelf"
   homepage "https://github.com/yindia/shelf"
 
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
   depends_on macos: ">= :sonoma"
 
   app "Shelf.app"
+  auto_updates false
 
   # The app is ad-hoc signed (not notarized); clear the quarantine flag so it
   # launches without the Gatekeeper prompt.

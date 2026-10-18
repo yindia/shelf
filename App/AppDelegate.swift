@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             Task { await environment.capture.start() }
+            checkForUpdatesOnLaunch()
 
             // Enforce the retention window now and hourly.
             self.retention = savedPrivacy.retention
@@ -134,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(settings)
 
         menu.addItem(withTitle: "About Shelf", action: #selector(showAbout), keyEquivalent: "")
+        updateMenuItem = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "Shelf Help", action: #selector(openHelp), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Shelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -182,6 +184,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openHelp() {
         if let url = URL(string: "https://github.com/yindia/shelf") { NSWorkspace.shared.open(url) }
+    }
+
+    private var updateMenuItem: NSMenuItem?
+
+    /// Silent check on launch: surface an update in the menu if one exists.
+    private func checkForUpdatesOnLaunch() {
+        Task {
+            if let update = await UpdateChecker.check() {
+                updateMenuItem?.title = "Update to v\(update.version)…"
+            }
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        Task {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            if let update = await UpdateChecker.check() {
+                alert.messageText = "Update available"
+                alert.informativeText = "Shelf v\(update.version) is available. Open the download page?"
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Later")
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(UpdateChecker.latestReleasePage)
+                }
+            } else {
+                alert.messageText = "You’re up to date"
+                alert.informativeText = "Shelf is running the latest version."
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
     }
 
     private var pauseMenuItem: NSMenuItem?
