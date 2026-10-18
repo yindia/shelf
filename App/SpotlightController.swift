@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Core
 import SwiftUI
 import UI
@@ -9,6 +10,10 @@ final class SpotlightController {
     private let panel: SpotlightPanel
     private let model: SpotlightViewModel
     private var keyMonitor: Any?
+    private var cancellable: AnyCancellable?
+    /// Fixed screen Y for the window's top edge, so the field stays put while
+    /// the results list grows downward.
+    private var anchorTop: CGFloat = 0
 
     init(model: SpotlightViewModel) {
         self.model = model
@@ -35,27 +40,33 @@ final class SpotlightController {
 
     func show() {
         model.reset()
-        center()
+        if let f = NSScreen.main?.visibleFrame {
+            anchorTop = f.minY + f.height * 0.72   // window's top edge
+        }
+        applyLayout()
         panel.makeKeyAndOrderFront(nil)
-        panel.makeFirstResponder(panel.contentView)
         installKeyMonitor()
+        // Re-size/anchor the window as the results list changes.
+        cancellable = model.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in self?.applyLayout() }
     }
 
     func hide() {
         removeKeyMonitor()
+        cancellable = nil
         panel.orderOut(nil)
     }
 
-    private func center() {
+    /// Sizes the window to field + results and keeps its top edge anchored.
+    private func applyLayout() {
         guard let screen = NSScreen.main else { return }
-        let f = screen.visibleFrame
-        // Size to fit content; place a bit above center (Spotlight-like).
-        panel.layoutIfNeeded()
-        let size = panel.contentView?.fittingSize ?? NSSize(width: Theme.spotlightWidth, height: 120)
+        let count = min(model.results.count, Theme.spotlightMaxRows)
+        let listHeight = model.results.isEmpty ? 0 : 1 + CGFloat(count) * Theme.spotlightRowHeight
+        let height = Theme.spotlightFieldHeight + listHeight
         let w = Theme.spotlightWidth
-        let x = f.minX + (f.width - w) / 2
-        let y = f.minY + f.height * 0.62 - size.height / 2
-        panel.setFrame(NSRect(x: x, y: y, width: w, height: max(size.height, Theme.spotlightFieldHeight)), display: true)
+        let x = screen.visibleFrame.minX + (screen.visibleFrame.width - w) / 2
+        panel.setFrame(NSRect(x: x, y: anchorTop - height, width: w, height: height), display: true)
     }
 
     private func installKeyMonitor() {
