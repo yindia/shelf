@@ -138,8 +138,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateMenuItem = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "Shelf Help", action: #selector(openHelp), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Shelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = menu.addItem(withTitle: "Quit Shelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.items.forEach { if $0.target == nil { $0.target = self } }
+        quit.target = NSApp   // terminate(_:) lives on NSApplication, not the delegate
         item.menu = menu
         statusItem = item
     }
