@@ -15,6 +15,7 @@ struct CollectionTabBar: View {
     /// Drag-and-drop refile: (itemID, destination collectionID).
     let onMove: (UUID, UUID) -> Void
     var onEditRules: () -> Void = {}
+    var onDelete: (UUID) -> Void = { _ in }
 
     @FocusState private var searchFocused: Bool
     @Environment(\.colorSchemeContrast) private var contrast
@@ -43,7 +44,7 @@ struct CollectionTabBar: View {
     private var centeredTabs: some View {
         GeometryReader { geo in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.tabSpacing) {
+                HStack(spacing: Theme.tabGap) {
                     ForEach(collections) { tab($0) }
                 }
                 .padding(.horizontal, 2)
@@ -107,34 +108,43 @@ struct CollectionTabBar: View {
         let isSelected = collection.id == selectedID
         let isDropTarget = collection.id == dropTargetID
         let color = Color(hex: collection.colorHex) ?? .gray
-        let fillOpacity = isDropTarget ? Theme.tabDropHighlightOpacity
-            : (isSelected ? Theme.tabSelectedBgOpacity : 0)
         return Button {
             onSelect(collection.id)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: Theme.tabDotGap) {
                 Circle()
                     .fill(color)
                     .frame(width: Theme.tabDotSize, height: Theme.tabDotSize)
                     .overlay(contrast == .increased
                         ? Circle().strokeBorder(Theme.primaryText.opacity(0.5), lineWidth: 1) : nil)
                 Text(collection.name)
-                    .font(isSelected ? Theme.tabFont.weight(.semibold) : Theme.tabFont)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? Theme.primaryText : Theme.secondaryText)
                     .fixedSize()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: Theme.tabCornerRadius, style: .continuous)
-                .fill(color.opacity(fillOpacity)))
+            .background {
+                // Active tab: a .regularMaterial pill. Drop target: accent tint.
+                let shape = RoundedRectangle(cornerRadius: Theme.tabCornerRadius, style: .continuous)
+                if isDropTarget {
+                    shape.fill(color.opacity(Theme.tabDropHighlightOpacity))
+                } else if isSelected {
+                    shape.fill(.regularMaterial)
+                }
+            }
             .overlay(RoundedRectangle(cornerRadius: Theme.tabCornerRadius, style: .continuous)
-                .strokeBorder(color.opacity(isDropTarget ? 0.9 : (isSelected ? 0.6 : 0)),
-                              lineWidth: isDropTarget ? 1.5 : 1))
+                .strokeBorder(color.opacity(isDropTarget ? 0.9 : 0), lineWidth: isDropTarget ? 1.5 : 0))
             .scaleEffect(isDropTarget ? 1.06 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDropTarget)
+        .contextMenu {
+            if !collection.isDefault {
+                Button("Delete Collection", role: .destructive) { onDelete(collection.id) }
+            }
+        }
         .dropDestination(for: String.self) { ids, _ in
             guard let first = ids.first, let itemID = UUID(uuidString: first) else { return false }
             onMove(itemID, collection.id)

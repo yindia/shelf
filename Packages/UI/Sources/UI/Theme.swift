@@ -6,10 +6,10 @@ import SwiftUI
 public enum Theme {
     // MARK: Card geometry (8pt grid)
     /// Roomy enough for previews to breathe.
-    public static let cardWidth: CGFloat = 288
+    public static let cardWidth: CGFloat = 280
     public static let cardHeight: CGFloat = 324
     /// HIG continuous corner radius for cards/panel.
-    public static let cornerRadius: CGFloat = 14
+    public static let cornerRadius: CGFloat = 13
     public static let cardSpacing: CGFloat = 16
     public static let headerHeight: CGFloat = 44
     public static let footerHeight: CGFloat = 28
@@ -75,10 +75,10 @@ public enum Theme {
         public let radius: CGFloat
         public let y: CGFloat
     }
-    public static let contactShadowRest = ShadowLayer(opacity: 0.16, radius: 2, y: 1)
-    public static let ambientShadowRest = ShadowLayer(opacity: 0.12, radius: 10, y: 5)
-    public static let contactShadowSelected = ShadowLayer(opacity: 0.22, radius: 3, y: 2)
-    public static let ambientShadowSelected = ShadowLayer(opacity: 0.26, radius: 26, y: 14)
+    public static let contactShadowRest = ShadowLayer(opacity: 0.08, radius: 3, y: 1)
+    public static let ambientShadowRest = ShadowLayer(opacity: 0.12, radius: 24, y: 8)
+    public static let contactShadowSelected = ShadowLayer(opacity: 0.12, radius: 4, y: 2)
+    public static let ambientShadowSelected = ShadowLayer(opacity: 0.24, radius: 30, y: 16)
     /// Low-opacity hairline inner border on every card.
     public static let innerBorderOpacity: Double = 0.06
 
@@ -103,8 +103,9 @@ public enum Theme {
     }
 
     // MARK: Typography — system Dynamic Type text styles (SF Pro).
-    public static let kindLabelFont: Font = .subheadline.weight(.semibold)
+    public static let kindLabelFont: Font = .headline
     public static let timeFont: Font = .caption
+    public static let timeOpacity: Double = 0.8
     public static let bodyFont: Font = .callout
     public static let monoFont: Font = .system(.callout, design: .monospaced)
     public static let codeFont: Font = .system(.footnote, design: .monospaced)
@@ -129,17 +130,25 @@ public enum Theme {
     }
 
     // MARK: Tab bar (8pt grid)
-    public static let tabBarHeight: CGFloat = 40
+    public static let tabBarHeight: CGFloat = 44
     public static let tabDotSize: CGFloat = 8
+    /// Gap between the color dot and the label.
+    public static let tabDotGap: CGFloat = 8
+    /// Gap between adjacent tabs.
+    public static let tabGap: CGFloat = 22
+    /// Gap between the bar's zones (search / tabs / controls).
     public static let tabSpacing: CGFloat = 8
-    public static let tabCornerRadius: CGFloat = 8
+    /// Active-tab pill corner radius.
+    public static let tabCornerRadius: CGFloat = 6
     public static let tabSelectedBgOpacity: Double = 0.16
     /// Drop-target highlight when dragging a card onto a tab.
     public static let tabDropHighlightOpacity: Double = 0.34
 
     // MARK: Header / source icon
-    public static let sourceIconSize: CGFloat = 30
-    public static let sourceIconCorner: CGFloat = 7
+    public static let sourceIconSize: CGFloat = 24
+    public static let sourceIconCorner: CGFloat = 6
+    /// Inset of the app icon from the header's trailing edge.
+    public static let sourceIconInset: CGFloat = 6
 
     // MARK: Chips (image dimensions, etc.)
     public static let chipFont: Font = .caption2
@@ -162,6 +171,22 @@ public enum Theme {
     public static let warmBlue   = Accent(light: "#3E73B5", dark: "#5E92D0")
     public static let warmPurple = Accent(light: "#7B5EC0", dark: "#9A7ED6")
     public static let warmGray   = Accent(light: "#7C7A77", dark: "#9A9894")
+
+    /// Palette used for generated monogram tiles (link fallback).
+    public static let monogramPalette: [Accent] = [warmRed, warmOrange, warmAmber, warmGreen, warmBlue, warmPurple]
+
+    /// Deterministic palette color for a seed string (e.g. a domain).
+    public static func monogramColor(for seed: String) -> Color {
+        guard !monogramPalette.isEmpty else { return warmGray.color }
+        var hash = 5381
+        for byte in seed.utf8 { hash = ((hash << 5) &+ hash) &+ Int(byte) }
+        return monogramPalette[abs(hash) % monogramPalette.count].color
+    }
+
+    // MARK: Thumbnail / icon tile styling
+    public static let thumbCorner: CGFloat = 12
+    public static let thumbInnerShadowOpacity: Double = 0.22
+    public static let thumbInnerShadowRadius: CGFloat = 4
 
     /// Palette token for a content kind.
     public static func accentToken(for kind: ClipKind) -> Accent {

@@ -9,11 +9,13 @@ import SwiftUI
 public final class MediaPreviewLoader: ObservableObject {
     @Published private var thumbnails: [UUID: NSImage] = [:]
     @Published private var infos: [UUID: MediaInfo] = [:]
+    @Published private var linkImages: [UUID: NSImage] = [:]
 
     private let thumbnailProvider: ThumbnailProviding
     private let infoProvider: MediaInfoProviding
     private var inFlightThumbs: Set<UUID> = []
     private var inFlightInfos: Set<UUID> = []
+    private var inFlightLinks: Set<UUID> = []
 
     public init(thumbnailProvider: ThumbnailProviding, infoProvider: MediaInfoProviding) {
         self.thumbnailProvider = thumbnailProvider
@@ -56,9 +58,27 @@ public final class MediaPreviewLoader: ObservableObject {
         return nil
     }
 
-    /// Test/snapshot seam: inject a precomputed thumbnail/info synchronously.
-    public func preload(id: UUID, thumbnail: NSImage? = nil, info: MediaInfo? = nil) {
+    /// Rich link artwork (og:image / apple-touch-icon / large favicon), async.
+    public func linkImage(for item: ClipItemModel) -> NSImage? {
+        if let hit = linkImages[item.id] { return hit }
+        guard item.kind == .link, let url = item.linkURL, url.host != nil else { return nil }
+        guard !inFlightLinks.contains(item.id) else { return nil }
+        inFlightLinks.insert(item.id)
+        let id = item.id
+        Task {
+            let image = await LinkArt.fetch(url)
+            await MainActor.run {
+                self.inFlightLinks.remove(id)
+                if let image { self.linkImages[id] = image }
+            }
+        }
+        return nil
+    }
+
+    /// Test/snapshot seam: inject a precomputed thumbnail/info/link image.
+    public func preload(id: UUID, thumbnail: NSImage? = nil, info: MediaInfo? = nil, linkImage: NSImage? = nil) {
         if let thumbnail { thumbnails[id] = thumbnail }
         if let info { infos[id] = info }
+        if let linkImage { linkImages[id] = linkImage }
     }
 }

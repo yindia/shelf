@@ -3,7 +3,8 @@ import Foundation
 
 /// Persists auto-categorization rules in UserDefaults as JSON.
 enum AutoRulesPersistence {
-    private static let key = "shelf.autoRules"
+    // v2: resets stale blobs saved before built-in kind rules shipped enabled.
+    private static let key = "shelf.autoRules.v2"
 
     static func load() -> AutoCategorizationRules {
         guard let data = UserDefaults.standard.data(forKey: key),

@@ -128,6 +128,15 @@ let items = MainActor.assumeIsolated {
 MainActor.assumeIsolated {
     let loader = MediaPreviewLoader(thumbnailProvider: thumbProvider, infoProvider: infoProvider)
     for item in items {
+        if item.kind == .link, !item.isMapLink {
+            // No network in snapshots: preload a banner to show rich link art.
+            let banner = NSImage(size: NSSize(width: 480, height: 300))
+            banner.lockFocus()
+            NSGradient(colors: [.systemGreen, .systemTeal])?.draw(in: NSRect(x: 0, y: 0, width: 480, height: 300), angle: 60)
+            banner.unlockFocus()
+            loader.preload(id: item.id, linkImage: banner)
+            continue
+        }
         guard let url = item.fileURLString.flatMap(URL.init(string:)), url.isFileURL else { continue }
         let png = sync { await thumbProvider.thumbnailPNG(for: url, size: CGSize(width: Theme.cardWidth, height: 220), scale: 2) }
         let info = sync { await infoProvider.mediaInfo(for: url, kind: item.kind) }

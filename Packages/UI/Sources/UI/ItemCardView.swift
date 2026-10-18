@@ -94,7 +94,7 @@ struct ItemCardView: View {
                     .font(Theme.kindLabelFont)
                 Text(Self.relativeTime.localizedString(for: item.createdAt, relativeTo: Date()))
                     .font(Theme.timeFont)
-                    .opacity(0.85)
+                    .opacity(Theme.timeOpacity)
             }
             Spacer()
             sourceBadge
@@ -102,7 +102,8 @@ struct ItemCardView: View {
         .foregroundStyle(Theme.onHeaderColor)
         // Subtle shadow as belt-and-suspenders legibility insurance.
         .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
-        .padding(.horizontal, Theme.headerPadding)
+        .padding(.leading, Theme.headerPadding)
+        .padding(.trailing, Theme.sourceIconInset)
         .frame(height: Theme.headerHeight)
         .frame(maxWidth: .infinity)
         .background(Theme.headerGradient(headerBand))

@@ -47,6 +47,31 @@ extension CoreDataItemRepository: CollectionRepository {
         }
     }
 
+    public func delete(collectionID: UUID, reassignTo: UUID) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            storeContainer.performBackgroundTask { context in
+                do {
+                    // Refile the collection's items into the fallback (keep clips).
+                    let items = NSFetchRequest<NSManagedObject>(entityName: "Item")
+                    items.predicate = NSPredicate(format: "listID == %@", collectionID as CVarArg)
+                    for item in try context.fetch(items) {
+                        item.setValue(reassignTo, forKey: "listID")
+                    }
+                    // Delete the List object.
+                    let lists = NSFetchRequest<NSManagedObject>(entityName: "List")
+                    lists.predicate = NSPredicate(format: "id == %@", collectionID as CVarArg)
+                    for list in try context.fetch(lists) {
+                        context.delete(list)
+                    }
+                    try context.save()
+                    continuation.resume(returning: ())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     // MARK: Helpers
 
     /// Exposes the private container to this extension file.

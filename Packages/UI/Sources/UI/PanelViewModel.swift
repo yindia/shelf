@@ -158,6 +158,17 @@ public final class PanelViewModel: ObservableObject {
 
     public func beginCreateCollection() { isCreatingCollection = true }
 
+    /// Deletes a user collection; its clips move back to Clipboard History.
+    /// The built-in History collection cannot be deleted.
+    public func deleteCollection(_ id: UUID) {
+        guard id != CollectionSeed.historyID else { return }
+        Task {
+            try? await collectionRepo.delete(collectionID: id, reassignTo: CollectionSeed.historyID)
+            if selectedCollectionID == id { selectCollection(CollectionSeed.historyID) }
+            await loadCollections()
+        }
+    }
+
     public func createCollection(name: String, colorHex: String, icon: String) {
         let new = Collection(
             id: UUID(),

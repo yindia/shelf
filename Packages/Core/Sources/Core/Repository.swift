@@ -16,6 +16,8 @@ public protocol CollectionRepository: Sendable {
     /// Inserts the starter set if the store has no collections yet.
     func seedIfNeeded(_ seed: [Collection]) async throws
     @discardableResult func create(_ collection: Collection) async throws -> Collection
+    /// Deletes a collection; its items are refiled into `reassignTo` (not deleted).
+    func delete(collectionID: UUID, reassignTo: UUID) async throws
 }
 
 /// Write side.

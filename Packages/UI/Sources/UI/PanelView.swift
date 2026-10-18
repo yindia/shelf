@@ -30,7 +30,8 @@ public struct PanelView: View {
                     onToggleSearch: { model.toggleSearch() },
                     onAdd: { model.beginCreateCollection() },
                     onMove: { model.move(itemID: $0, to: $1) },
-                    onEditRules: { model.beginEditRules() }
+                    onEditRules: { model.beginEditRules() },
+                    onDelete: { model.deleteCollection($0) }
                 )
                 Divider().opacity(0.5)
                 // Rebuild the content subtree on each collection change so no
@@ -90,6 +91,7 @@ public struct PanelView: View {
                         .draggable(item.id.uuidString)
                         .onTapGesture(count: 2) { model.activate(index: index) }
                         .onTapGesture { model.selectIndex(index) }
+                        .contextMenu { CardContextMenu(item: item, model: model, pendingDelete: $pendingDelete) }
                         .transition(reduceMotion
                             ? .opacity
                             : .asymmetric(

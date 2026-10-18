@@ -28,7 +28,7 @@ struct CardContentView: View {
             if item.isMapLink {
                 MapCardBody(place: item.mapPlace, urlString: item.plainText ?? "")
             } else {
-                LinkCardBody(urlString: item.plainText ?? "")
+                LinkCardBody(item: item)
             }
         case .file:
             FileCardBody(item: item)
@@ -170,15 +170,19 @@ struct AudioCardBody: View {
         VStack(spacing: 10) {
             Group {
                 if let art = info?.artworkPNG, let image = NSImage(data: art) {
-                    Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                } else if let bars = info?.waveform {
-                    WaveformView(bars: bars).foregroundStyle(Theme.accent(for: .audio))
+                    Image(nsImage: image).resizable().aspectRatio(contentMode: .fill).clipped()
                 } else {
-                    WaveformView(bars: WaveformView.placeholder).foregroundStyle(.quaternary)
+                    ZStack {
+                        Theme.accent(for: .audio).opacity(0.14)
+                        WaveformView(bars: info?.waveform ?? WaveformView.placeholder)
+                            .foregroundStyle(Theme.accent(for: .audio))
+                            .padding(10)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
+            .innerShadowOverlay()
 
             VStack(spacing: 1) {
                 Text(info?.title ?? url?.deletingPathExtension().lastPathComponent ?? "Audio")
@@ -251,47 +255,75 @@ struct ColorCardBody: View {
 // MARK: - Link (favicon + title)
 
 struct LinkCardBody: View {
-    let urlString: String
-    @State private var favicon: NSImage?
+    let item: ClipItemModel
+    @EnvironmentObject private var loader: MediaPreviewLoader
 
-    private var url: URL? { URL(string: urlString) }
-    private var host: String { url?.host ?? urlString }
+    private var url: URL? { item.linkURL }
+    private var host: String { (url?.host ?? item.plainText ?? "").replacingOccurrences(of: "www.", with: "") }
 
     var body: some View {
+        let art = loader.linkImage(for: item)
         VStack(alignment: .leading, spacing: 10) {
-            // Hero block fills the available vertical space (room for a thumbnail).
-            ZStack {
-                RoundedRectangle(cornerRadius: Theme.mapPreviewCorner, style: .continuous)
-                    .fill(Theme.accent(for: .link).opacity(0.14))
-                if let favicon {
-                    Image(nsImage: favicon).resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: 56, height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // Prominent artwork banner, or a generated monogram tile.
+            Group {
+                if let art {
+                    Image(nsImage: art)
+                        .resizable().aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 } else {
-                    Image(systemName: "globe")
-                        .font(.system(size: 40, weight: .regular))
-                        .foregroundStyle(Theme.accent(for: .link))
+                    MonogramTile(seed: host)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
+            .innerShadowOverlay()
 
             Text(host).font(Theme.linkTitleFont).lineLimit(1)
-            Text(urlString)
-                .font(Theme.bodyFont)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+            Text(item.plainText ?? "")
+                .font(Theme.bodyFont).foregroundStyle(.secondary).lineLimit(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .task { await loadFavicon() }
     }
+}
 
-    private func loadFavicon() async {
-        guard let host = url?.host,
-              let faviconURL = URL(string: "https://www.google.com/s2/favicons?sz=64&domain=\(host)"),
-              let (data, _) = try? await URLSession.shared.data(from: faviconURL),
-              let image = NSImage(data: data)
-        else { return }
-        favicon = image
+/// Generated fallback tile: first letter of the domain on a palette color.
+struct MonogramTile: View {
+    let seed: String
+    private var letter: String {
+        String(seed.first(where: { $0.isLetter || $0.isNumber }).map(Character.uppercase) ?? "#")
+    }
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Theme.monogramColor(for: seed).lighten(0.05),
+                                    Theme.monogramColor(for: seed).darken(0.06)],
+                           startPoint: .top, endPoint: .bottom)
+            Text(letter)
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private extension Character {
+    static func uppercase(_ c: Character) -> Character { Character(c.uppercased()) }
+}
+
+extension View {
+    /// Subtle inner shadow + hairline for thumbnails/icon tiles.
+    func innerShadowOverlay(cornerRadius: CGFloat = Theme.thumbCorner) -> some View {
+        overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.black.opacity(Theme.thumbInnerShadowOpacity), lineWidth: 1)
+                .blur(radius: Theme.thumbInnerShadowRadius)
+                .mask(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .allowsHitTesting(false)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+        )
     }
 }
 

@@ -72,6 +72,22 @@ Makefile                 build / bundle / sign / run / test
 height/radius/spacing, blur material + tint, selection scale/shadow, and spring
 timing. Adjust there to tune feel against the reference app.
 
+## Install (download)
+
+Grab **Shelf.dmg** from the [latest release](../../releases/latest), open it, and
+drag **Shelf** to Applications.
+
+> Builds are **ad-hoc signed, not notarized**, so Gatekeeper warns on first run.
+> Right-click **Shelf.app → Open** once, or run
+> `xattr -dr com.apple.quarantine /Applications/Shelf.app`. Grant **Accessibility**
+> when prompted (needed for paste-back).
+
+To cut a release, push a tag — CI builds and attaches the DMG:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## Requirements
 
 - **Xcode 16+** (ships the Swift 6.2 toolchain) **or** the standalone Swift 6
@@ -113,13 +129,18 @@ Artifacts land in `build/Shelf.app`.
 If you rebuild, macOS may require re-granting Accessibility because the ad-hoc
 signature changes. A stable (Developer ID) signature avoids that — see below.
 
-## Later: distribution
+## Releases & distribution
 
-For sharing beyond your machine you'll need a paid Apple Developer account to:
-- Sign with a **Developer ID Application** certificate instead of ad-hoc.
-- **Notarize** (`xcrun notarytool submit`) and **staple** the `.app`.
+- `make dmg` packages the built app into `build/Shelf.dmg` (drag-to-Applications).
+- Pushing a `v*` tag runs `.github/workflows/release.yml`, which tests, builds,
+  stamps the version into `Info.plist`, packages the DMG, and publishes a GitHub
+  Release with auto-generated notes.
 
-Neither is required for local development.
+For a warning-free install outside your own machine you'll want a paid Apple
+Developer account to sign with a **Developer ID Application** certificate and
+**notarize** (`xcrun notarytool submit`) + **staple** the app/DMG. The current
+workflow ships ad-hoc-signed builds; see the release notes for the Gatekeeper
+workaround.
 
 ## Contributing
 
