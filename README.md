@@ -14,23 +14,60 @@ AppKit + SwiftUI and Swift 6 strict concurrency.
 
 ## Features
 
+### Capture & content types
 - **Rich preview cards** per content type — text, rich text/HTML, code
   (syntax-highlighted), image (thumbnail + dimensions), video (QuickLook poster
-  + duration), audio (artwork or waveform), link (favicon + title), map
-  (`MKMapSnapshotter`), color (swatch + hex), and files. Previews are generated
-  off-main via QuickLook / AVFoundation and cached per item.
-- **Collections (pinboards)** with color-coded headers; drag a card onto a tab
-  to refile it; right-click for Copy / Paste / Move to / Delete / Reveal.
+  + duration), audio (artwork or waveform), link (og:image/favicon + title +
+  domain), map (`MKMapSnapshotter`), color (swatch + hex), and files. Previews
+  are generated off-main via QuickLook / AVFoundation and cached per item.
+- **Automatic capture** — `DispatchSourceTimer` polls `NSPasteboard.changeCount`,
+  classifies, SHA-256 dedups, and stores to CoreData.
+- **OCR image search** — Vision recognizes text inside screenshots/images at
+  capture; that text is indexed so images are findable by their contents.
+
+### Find
+- **Power Search** — fuzzy, typo-tolerant matching with intelligent ranking
+  (prefix › substring › fuzzy, then recency). Searches text, titles, OCR text,
+  and URLs across **all** pinboards.
+- **Filters** — narrow by content **type**, source **app**, **date** (today /
+  7 / 30 days), and **pinboard**, shown as removable visual tokens.
+- **Jump to History** — from any search result, **Show in Clipboard / Show in
+  Pinboard** (or **⌘G**) reveals the item in its collection, in context.
+
+### Organize
+- **Collections (pinboards)** with color-coded headers; **drag a card onto a
+  tab** to refile it; create with **＋**, delete via right-click → Delete.
+- **Pin / Unpin** — pinned clips sort to the top (📌 badge).
 - **Opt-in auto-categorization** — rules by content kind or text/regex route new
   clips into collections (default off; Clipboard History always shows all).
-- **Keyboard-first** — ⇧⌘V to summon, ← → to move, ⌘1–9 to pick + paste, ⏎ to
-  paste, ⎋ to dismiss.
+- **Clear All** and **lazy loading** (first 30, then page-in on scroll).
+
+### Use an item
 - **Paste-back** — restores all representations and posts a synthetic ⌘V into
   the previously-active app (Accessibility-gated; copy-only fallback otherwise).
-- **Accessible** — WCAG AA header contrast, VoiceOver labels, and full support
-  for Reduce Transparency / Reduce Motion / Increase Contrast.
+- **Quick Look** — **Space** previews images/video/audio/PDF/files; **Esc** closes.
+- **Edit** — rename a clip and edit plain text in place.
+- **Plain-text paste** — hold **Option** (or “Paste without Formatting”).
+- **Copy / drag as file** — paste images into any app or webpage as a file.
+- **Rotate image**, **Open link** (**⌘O**), and **Share…** (system share sheet).
+- **New Text Item** — create a clip from scratch with **⌘N**.
+
+### Privacy
+- **Show during screen sharing** toggle — hide Shelf from recording, sharing,
+  and screenshots (`NSWindow.sharingType`).
+- **Ignore confidential content** — skip items apps mark confidential (passwords).
+
+### Feel
+- **Keyboard-first** — ⇧⌘V to summon, ← → to move, ⌘1–9 to pick + paste, ⏎ to
+  paste, ⎋ to dismiss, Space to preview, ⌘G jump, ⌘N new, ⌘O open.
 - **Native materials** — real `NSVisualEffectView` glass that blurs the desktop
   and tracks light/dark; layered shadows; continuous corners.
+- **Accessible** — WCAG AA header contrast, VoiceOver labels, and full support
+  for Reduce Transparency / Reduce Motion / Increase Contrast.
+
+### Menu bar
+Show Shelf · New Text Item (⌘N) · Pause/Resume Capture (⌘P) · Clear All History ·
+Settings (Privacy, Auto-Categorization) · About · Help · Quit.
 
 ## How it works
 
@@ -43,8 +80,9 @@ Capture → classify → dedup → store → render → paste-back:
   `RegisterEventHotKey`). Agent app (`LSUIElement`), no Dock icon. The panel is a
   non-activating floating `NSPanel` pinned flush to the screen bottom.
 
-Out of scope for v1: CloudKit sync, shared pinboards, OCR, on-device LLM,
-embedded MCP server, screen recording.
+Not implemented (needs frameworks out of scope for this build): CloudKit sync /
+shared pinboards, in-app web browser link editing, iPhone document scanning
+(Continuity Camera), and Shortcuts / App Intents automation.
 
 ## Project layout
 
