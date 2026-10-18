@@ -1,5 +1,7 @@
 # Build output
 .build/
+.build-arm64/
+.build-x86/
 build/
 DerivedData/
 *.xcuserstate

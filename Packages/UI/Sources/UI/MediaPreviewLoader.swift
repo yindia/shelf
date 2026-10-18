@@ -66,10 +66,10 @@ public final class MediaPreviewLoader: ObservableObject {
         inFlightLinks.insert(item.id)
         let id = item.id
         Task {
-            let image = await LinkArt.fetch(url)
+            let data = await LinkArt.fetch(url)   // Sendable Data crosses the boundary
             await MainActor.run {
                 self.inFlightLinks.remove(id)
-                if let image { self.linkImages[id] = image }
+                if let data, let image = NSImage(data: data) { self.linkImages[id] = image }
             }
         }
         return nil

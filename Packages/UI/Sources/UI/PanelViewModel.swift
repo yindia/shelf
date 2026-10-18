@@ -178,7 +178,7 @@ public final class PanelViewModel: ObservableObject {
             order: (collections.map(\.order).max() ?? 0) + 1
         )
         Task {
-            try? await collectionRepo.create(new)
+            _ = try? await collectionRepo.create(new)
             await loadCollections()
             isCreatingCollection = false
         }

@@ -23,6 +23,7 @@ struct MapPreview: View {
         .task { await snapshot() }
     }
 
+    @MainActor
     private func snapshot() async {
         guard let place, place.hasCoordinate,
               let lat = place.latitude, let lng = place.longitude else { return }

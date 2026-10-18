@@ -15,8 +15,16 @@ build:
 	swift build -c $(CONFIG)
 
 # Universal binary for distribution (runs on Apple Silicon AND Intel).
+# Build each slice with the native backend (avoids the xcodebuild multi-arch
+# path, which mishandles Swift 6 language mode) and lipo them together.
 build-universal:
-	swift build -c $(CONFIG) --arch arm64 --arch x86_64
+	swift build -c $(CONFIG) --triple arm64-apple-macosx --scratch-path .build-arm64
+	swift build -c $(CONFIG) --triple x86_64-apple-macosx --scratch-path .build-x86
+	mkdir -p $(dir $(UBINARY))
+	lipo -create -output $(UBINARY) \
+		.build-arm64/$(CONFIG)/ShelfApp \
+		.build-x86/$(CONFIG)/ShelfApp
+	@lipo -archs $(UBINARY)
 
 # Assemble a proper .app bundle with Info.plist + entitlements, then ad-hoc sign.
 bundle: build

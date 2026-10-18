@@ -5,25 +5,27 @@ import Foundation
 /// apple-touch-icon, then a large favicon. Returns nil when none resolves (the
 /// UI then shows a generated monogram tile).
 enum LinkArt {
-    static func fetch(_ url: URL) async -> NSImage? {
+    /// Returns raw image bytes (Sendable) so the result can cross actor
+    /// boundaries; callers build the `NSImage` on their own actor.
+    static func fetch(_ url: URL) async -> Data? {
         guard let host = url.host else { return nil }
 
         // 1) Parse the page head for og:image / apple-touch-icon.
         if let html = await html(for: url) {
             if let og = metaContent(html, property: "og:image"),
-               let link = resolve(og, base: url), let img = await image(link) {
-                return img
+               let link = resolve(og, base: url), let data = await image(link) {
+                return data
             }
             if let touch = linkHref(html, rel: "apple-touch-icon"),
-               let link = resolve(touch, base: url), let img = await image(link) {
-                return img
+               let link = resolve(touch, base: url), let data = await image(link) {
+                return data
             }
         }
         // 2) Well-known apple-touch-icon path.
         if let scheme = url.scheme,
            let direct = URL(string: "\(scheme)://\(host)/apple-touch-icon.png"),
-           let img = await image(direct) {
-            return img
+           let data = await image(direct) {
+            return data
         }
         // 3) Large favicon fallback.
         if let fav = URL(string: "https://www.google.com/s2/favicons?sz=128&domain=\(host)") {
@@ -42,10 +44,11 @@ enum LinkArt {
         return String(data: slice, encoding: .utf8) ?? String(decoding: slice, as: UTF8.self)
     }
 
-    private static func image(_ url: URL) async -> NSImage? {
+    private static func image(_ url: URL) async -> Data? {
         guard let (data, _) = try? await URLSession.shared.data(from: url),
               let image = NSImage(data: data), image.size.width >= 16 else { return nil }
-        return image
+        _ = image
+        return data
     }
 
     private static func metaContent(_ html: String, property: String) -> String? {
