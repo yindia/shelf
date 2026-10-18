@@ -29,9 +29,17 @@ struct CollectionTabBar: View {
             if isSearching {
                 Spacer(minLength: 0)
             } else {
-                centeredTabs
-                    .frame(maxWidth: .infinity)   // own zone; can't hide neighbors
-                trailingControls
+                // Left-aligned tabs (scroll if they overflow) + inline "+".
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.tabGap) {
+                        ForEach(collections) { tab($0) }
+                        iconButton("plus", help: "New Collection", action: onAdd)
+                    }
+                    .frame(maxHeight: .infinity)
+                }
+                .scrollClipDisabled()
+                Spacer(minLength: 8)
+                overflowMenu
                     .fixedSize()
             }
         }
@@ -39,27 +47,8 @@ struct CollectionTabBar: View {
         .padding(.horizontal, Theme.panelPadding)
     }
 
-    // MARK: Center zone — centers when tabs fit, scrolls (clipped-safe) when not.
-
-    private var centeredTabs: some View {
-        GeometryReader { geo in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.tabGap) {
-                    ForEach(collections) { tab($0) }
-                }
-                .padding(.horizontal, 2)
-                // Fill the zone's full height so the HStack's default .center
-                // vertical alignment puts tabs on the bar's baseline; minWidth
-                // centers them horizontally when they fit, else they scroll.
-                .frame(minWidth: geo.size.width, maxHeight: .infinity, alignment: .center)
-            }
-            .scrollClipDisabled()
-        }
-    }
-
-    private var trailingControls: some View {
+    private var overflowMenu: some View {
         HStack(spacing: Theme.tabSpacing) {
-            iconButton("plus", help: "New Collection", action: onAdd)
             Menu {
                 Button("Auto-Categorization…", action: onEditRules)
                 Button("Edit Collections…") {}
@@ -112,11 +101,18 @@ struct CollectionTabBar: View {
             onSelect(collection.id)
         } label: {
             HStack(spacing: Theme.tabDotGap) {
-                Circle()
-                    .fill(color)
-                    .frame(width: Theme.tabDotSize, height: Theme.tabDotSize)
-                    .overlay(contrast == .increased
-                        ? Circle().strokeBorder(Theme.primaryText.opacity(0.5), lineWidth: 1) : nil)
+                // Active tab shows the collection's SF icon; others show a dot.
+                if isSelected {
+                    Image(systemName: collection.iconSymbol)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(color)
+                } else {
+                    Circle()
+                        .fill(color)
+                        .frame(width: Theme.tabDotSize, height: Theme.tabDotSize)
+                        .overlay(contrast == .increased
+                            ? Circle().strokeBorder(Theme.primaryText.opacity(0.5), lineWidth: 1) : nil)
+                }
                 Text(collection.name)
                     .font(.subheadline.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? Theme.primaryText : Theme.secondaryText)

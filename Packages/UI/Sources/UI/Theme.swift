@@ -33,7 +33,7 @@ public enum Theme {
         return isDark ? NSColor(calibratedRed: 0.22, green: 0.18, blue: 0.14, alpha: 1)
                       : NSColor(calibratedRed: 0.99, green: 0.96, blue: 0.91, alpha: 1)
     })
-    public static let barWarmTintOpacity: Double = 0.08
+    public static let barWarmTintOpacity: Double = 0.3
     /// Opaque warm surface for the Reduce Transparency fallback (adaptive).
     public static let barSolid = Color(nsColor: NSColor(name: nil) { appearance in
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
@@ -41,15 +41,12 @@ public enum Theme {
                       : NSColor(calibratedRed: 0.97, green: 0.95, blue: 0.91, alpha: 1)
     })
 
-    // MARK: Card surface — a LIGHT surface in both appearances (cards stay light
-    // even in dark mode, like a physical card). Light: white. Dark: light gray.
+    // MARK: Card surface — an elevated surface that ADAPTS to appearance:
+    // light → white, dark → a raised dark gray (lighter than the bar so it lifts).
     public static let cardBody = Color(nsColor: NSColor(name: nil) { appearance in
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        return isDark ? NSColor(calibratedWhite: 0.93, alpha: 1) : .white
+        return isDark ? NSColor(calibratedWhite: 0.17, alpha: 1) : .white
     })
-    /// The body renders in a forced-light color scheme so textBackgroundColor =
-    /// white and labelColor = dark, guaranteeing dark-on-light readability.
-    public static let bodyColorScheme: ColorScheme = .light
     public static let cardBorder = Color(nsColor: .separatorColor)
     public static let cardBorderWidth: CGFloat = 1
     /// HIG continuous corner style helper.
@@ -63,11 +60,14 @@ public enum Theme {
         return luminance > 0.62 ? .black : .white
     }
 
-    // MARK: Selection / motion
-    public static let selectedScale: CGFloat = 1.05
-    public static let hoverScale: CGFloat = 1.02
-    /// Neighbors dim only slightly — keep header accents saturated, not muddy.
-    public static let unselectedDim: Double = 0.9
+    // MARK: Selection / motion (Apple-subtle)
+    public static let selectedScale: CGFloat = 1.02
+    public static let hoverScale: CGFloat = 1.01
+    /// Neighbors stay full strength; selection reads via ring + lift, not dimming.
+    public static let unselectedDim: Double = 1.0
+    /// Accent cue: a thin left edge + an 8pt dot in the header.
+    public static let accentEdgeWidth: CGFloat = 3
+    public static let selectionRingWidth: CGFloat = 2
 
     // MARK: Layered shadows (HIG depth: one tight contact + one wide ambient).
     public struct ShadowLayer: Sendable {
@@ -75,21 +75,13 @@ public enum Theme {
         public let radius: CGFloat
         public let y: CGFloat
     }
-    public static let contactShadowRest = ShadowLayer(opacity: 0.08, radius: 3, y: 1)
-    public static let ambientShadowRest = ShadowLayer(opacity: 0.12, radius: 24, y: 8)
-    public static let contactShadowSelected = ShadowLayer(opacity: 0.12, radius: 4, y: 2)
-    public static let ambientShadowSelected = ShadowLayer(opacity: 0.24, radius: 30, y: 16)
+    public static let contactShadowRest = ShadowLayer(opacity: 0.05, radius: 2, y: 1)
+    public static let ambientShadowRest = ShadowLayer(opacity: 0.10, radius: 16, y: 4)
+    public static let contactShadowSelected = ShadowLayer(opacity: 0.08, radius: 3, y: 2)
+    public static let ambientShadowSelected = ShadowLayer(opacity: 0.16, radius: 22, y: 10)
     /// Low-opacity hairline inner border on every card.
     public static let innerBorderOpacity: Double = 0.06
 
-    // MARK: Selection highlight
-    /// Accent ring around the selected card.
-    public static let selectionRingWidth: CGFloat = 3
-    /// Accent glow spread behind the selected card.
-    public static let selectionGlowRadius: CGFloat = 16
-    public static let selectionGlowOpacity: Double = 0.55
-    /// Padding of the glass halo beyond the card edge.
-    public static let selectionHaloInset: CGFloat = -5
 
     public static let springResponse: Double = 0.30
     public static let springDamping: Double = 0.75
@@ -103,9 +95,11 @@ public enum Theme {
     }
 
     // MARK: Typography — system Dynamic Type text styles (SF Pro).
-    public static let kindLabelFont: Font = .headline
-    public static let timeFont: Font = .caption
-    public static let timeOpacity: Double = 0.8
+    /// Quiet, uppercase kind label (metadata, not a banner title).
+    public static let kindLabelFont: Font = .caption.weight(.semibold)
+    public static let kindLabelTracking: CGFloat = 0.6
+    public static let timeFont: Font = .caption2
+    public static let timeOpacity: Double = 1.0
     public static let bodyFont: Font = .callout
     public static let monoFont: Font = .system(.callout, design: .monospaced)
     public static let codeFont: Font = .system(.footnote, design: .monospaced)

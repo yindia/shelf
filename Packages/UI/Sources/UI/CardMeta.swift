@@ -32,6 +32,32 @@ enum CardMeta {
         }
     }
 
+    /// Primary footer title (bold) for links/files/media; nil for plain content.
+    static func title(for item: ClipItemModel) -> String? {
+        switch item.kind {
+        case .link:
+            if item.isMapLink { return item.mapPlace?.query ?? item.linkURL?.host }
+            return item.linkURL?.host?.replacingOccurrences(of: "www.", with: "")
+        case .file, .audio, .video:
+            return item.fileURLString.flatMap(URL.init(string:))?.lastPathComponent
+        default:
+            return nil
+        }
+    }
+
+    /// Secondary footer line (domain / path).
+    static func subtitle(for item: ClipItemModel) -> String? {
+        switch item.kind {
+        case .link:
+            return (item.plainText ?? "").replacingOccurrences(of: "https://", with: "")
+                .replacingOccurrences(of: "http://", with: "")
+        case .file, .audio, .video:
+            return item.fileURLString.flatMap(URL.init(string:))?.deletingLastPathComponent().path
+        default:
+            return nil
+        }
+    }
+
     static func imageSize(_ item: ClipItemModel) -> CGSize? {
         for uti in [UTIs.png, UTIs.tiff, UTIs.jpeg] {
             if let data = item.data(for: uti), let img = NSImage(data: data), img.size != .zero {

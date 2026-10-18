@@ -17,3 +17,7 @@ Package.resolved
 # Reverse-engineered reference binary — NOT part of this project, never commit.
 Paste.app/
 *.app/
+
+# Local working notes / scratch (not published)
+MEMORY.md
+Screenshot *.png

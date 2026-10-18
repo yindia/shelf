@@ -58,6 +58,21 @@ jobs:
           name: Shelf ${{ steps.ver.outputs.tag }}
           generate_release_notes: true
           files: build/Shelf.dmg
+
+      - name: Update Homebrew cask on main
+        run: |
+          SHA=$(shasum -a 256 build/Shelf.dmg | awk '{print $1}')
+          VER="${{ steps.ver.outputs.version }}"
+          git fetch origin main
+          git checkout main
+          sed -i '' -E "s/version \"[^\"]*\"/version \"$VER\"/" Casks/shelf.rb
+          sed -i '' -E "s/sha256 \"[^\"]*\"/sha256 \"$SHA\"/" Casks/shelf.rb
+          if ! git diff --quiet Casks/shelf.rb; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: update Homebrew cask to $VER" Casks/shelf.rb
+            git push origin main
+          fi
           body: |
             ## Shelf ${{ steps.ver.outputs.tag }}
 

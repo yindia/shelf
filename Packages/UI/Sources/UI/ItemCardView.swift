@@ -8,9 +8,9 @@ struct ItemCardView: View {
     let item: ClipItemModel
     let index: Int
     let isSelected: Bool
-    /// Vivid accent (selection ring + glow).
+    /// Collection/kind accent.
     let headerColor: Color
-    /// AA-guaranteed band fill (darkened so white text passes contrast).
+    /// AA-darkened band fill so white header text passes contrast.
     let headerBand: Color
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -21,44 +21,27 @@ struct ItemCardView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            VStack(spacing: 0) {
-                CardContentView(item: item)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(Theme.bodyPadding)
-                    .clipped()
-                footer
-            }
-            // Light body surface with dark, readable text in both appearances.
-            .background(Theme.cardBody)
-            .environment(\.colorScheme, Theme.bodyColorScheme)
+            CardContentView(item: item)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(item.kind == .image ? 0 : Theme.bodyPadding)
+                .clipped()
+            footer
         }
+        // White/elevated body surface (adapts light/dark).
+        .background(Theme.cardBody)
         .frame(width: Theme.cardWidth, height: Theme.cardHeight)
-        // Translucent elevated surface (tracks light/dark); solid under Reduce
-        // Transparency. Depth from shadow, not strokes.
-        .background(reduceTransparency ? AnyShapeStyle(Theme.cardBody) : AnyShapeStyle(.regularMaterial))
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: Theme.cornerStyle))
-        // Glass halo behind the selected card, tinted with its accent.
-        .background(alignment: .center) {
-            if isSelected {
-                SelectionHalo(tint: headerColor)
-                    .padding(Theme.selectionHaloInset)
-            }
-        }
-        // Accent ring only on the selected card (and a hairline only for
-        // Increased Contrast, per accessibility).
+        // Selection: a system-accent ring (like the reference's blue outline).
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: Theme.cornerStyle)
                 .strokeBorder(
-                    isSelected ? headerColor : (contrast == .increased ? Theme.cardBorder : .clear),
+                    isSelected ? Color.accentColor : (contrast == .increased ? Theme.cardBorder : .clear),
                     lineWidth: isSelected ? Theme.selectionRingWidth : (contrast == .increased ? 1 : 0)
                 )
         )
-        // Layered shadows: tight contact + wide ambient.
+        // Single soft ambient shadow + a faint contact shadow.
         .shadow(color: .black.opacity(contactShadow.opacity), radius: contactShadow.radius, y: contactShadow.y)
         .shadow(color: .black.opacity(ambientShadow.opacity), radius: ambientShadow.radius, y: ambientShadow.y)
-        // Accent glow on selection.
-        .shadow(color: isSelected ? headerColor.opacity(Theme.selectionGlowOpacity) : .clear,
-                radius: isSelected ? Theme.selectionGlowRadius : 0)
         .scaleEffect(reduceMotion ? 1 : scale)
         .opacity(opacity)
         .animation(reduceMotion ? .none : Theme.selectionSpring, value: isSelected)
@@ -85,26 +68,21 @@ struct ItemCardView: View {
         return Theme.unselectedDim
     }
 
-    // MARK: Header band (collection color)
+    // MARK: Header — neutral; color is only a small dot cue.
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: Theme.icon(for: item.kind))
-                .font(.subheadline.weight(.bold))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(item.kind.rawValue.capitalized)
-                    .font(Theme.kindLabelFont)
+                    .font(.subheadline.weight(.semibold))
                 Text(Self.relativeTime.localizedString(for: item.createdAt, relativeTo: Date()))
-                    .font(Theme.timeFont)
-                    .opacity(Theme.timeOpacity)
+                    .font(.caption)
+                    .opacity(0.85)
             }
             Spacer()
             sourceBadge
         }
-        .foregroundStyle(Theme.onHeaderColor)
-        // Subtle shadow as belt-and-suspenders legibility insurance.
-        .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
+        .foregroundStyle(.white)
         .padding(.leading, Theme.headerPadding)
         .padding(.trailing, Theme.sourceIconInset)
         .frame(height: Theme.headerHeight)
@@ -132,20 +110,32 @@ struct ItemCardView: View {
 
     // MARK: Footer
 
-    private var footer: some View {
-        HStack {
-            Text(CardMeta.footer(for: item))
-                .font(Theme.footerFont)
-                .foregroundStyle(Theme.secondaryText)   // AA on the body surface
-                .lineLimit(1)
-            Spacer()
-            Text("⌘\(index + 1)")
-                .font(Theme.footerFont)
-                .foregroundStyle(Theme.secondaryText)
+    @ViewBuilder private var footer: some View {
+        if item.kind == .image {
+            EmptyView()   // full-bleed photo with its own W×H chip
+        } else if let title = CardMeta.title(for: item) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary).lineLimit(1)
+                if let sub = CardMeta.subtitle(for: item) {
+                    Text(sub).font(Theme.footerFont)
+                        .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Theme.bodyPadding)
+            .padding(.vertical, 8)
+        } else {
+            HStack {
+                Text(CardMeta.footer(for: item))
+                    .font(Theme.footerFont).foregroundStyle(.secondary).lineLimit(1)
+                Spacer()
+                Text("⌘\(index + 1)").font(Theme.footerFont).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, Theme.bodyPadding)
+            .frame(height: Theme.footerHeight)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, Theme.bodyPadding)   // footer inset matches body side insets
-        .frame(height: Theme.footerHeight)
-        .frame(maxWidth: .infinity)
     }
 
     /// e.g. "Text, copied 11 minutes ago from Safari. example.com…"

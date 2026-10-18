@@ -275,28 +275,18 @@ struct LinkCardBody: View {
     private var host: String { (url?.host ?? item.plainText ?? "").replacingOccurrences(of: "www.", with: "") }
 
     var body: some View {
+        // Thumbnail fills the body; title + domain live in the card footer.
         let art = loader.linkImage(for: item)
-        VStack(alignment: .leading, spacing: 10) {
-            // Prominent artwork banner, or a generated monogram tile.
-            Group {
-                if let art {
-                    Image(nsImage: art)
-                        .resizable().aspectRatio(contentMode: .fit)
-                } else {
-                    MonogramTile(seed: host)
-                }
+        Group {
+            if let art {
+                Image(nsImage: art).resizable().aspectRatio(contentMode: .fill)
+            } else {
+                MonogramTile(seed: host)
             }
-            .frame(maxWidth: .infinity)
-            .frame(maxHeight: Theme.previewMaxHeight)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
-            .innerShadowOverlay()
-
-            Text(host).font(Theme.linkTitleFont).lineLimit(1)
-            Text(item.plainText ?? "")
-                .font(Theme.bodyFont).foregroundStyle(.secondary).lineLimit(1)
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
+        .innerShadowOverlay()
     }
 }
 
@@ -308,12 +298,10 @@ struct MonogramTile: View {
     }
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Theme.monogramColor(for: seed).lighten(0.05),
-                                    Theme.monogramColor(for: seed).darken(0.06)],
-                           startPoint: .top, endPoint: .bottom)
+            Rectangle().fill(.quaternary)
             Text(letter)
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

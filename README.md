@@ -72,7 +72,19 @@ Makefile                 build / bundle / sign / run / test
 height/radius/spacing, blur material + tint, selection scale/shadow, and spring
 timing. Adjust there to tune feel against the reference app.
 
-## Install (download)
+## Install
+
+### Homebrew (recommended)
+
+```bash
+brew tap yindia/shelf https://github.com/yindia/shelf
+brew install --cask shelf
+```
+
+Upgrades: `brew upgrade --cask shelf`. The cask clears the Gatekeeper quarantine
+flag automatically (the build is ad-hoc signed, not notarized).
+
+### Direct download
 
 Grab **Shelf.dmg** from the [latest release](../../releases/latest), open it, and
 drag **Shelf** to Applications.
