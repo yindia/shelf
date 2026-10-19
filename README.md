@@ -29,7 +29,7 @@ AppKit + SwiftUI and Swift 6 strict concurrency.
 - **Power Search** — fuzzy, typo-tolerant matching with intelligent ranking
   (prefix › substring › fuzzy, then recency). Searches text, titles, OCR text,
   and URLs across **all** pinboards.
-- **Global Spotlight-style search** — **⌥⌘Space** opens a centered, floating glass
+- **Global Spotlight-style search** — **⌃⌘V** opens a centered, floating glass
   search window (Spotlight/Raycast-style) over your whole history. ↑/↓ to move,
   Enter to paste, ⌘C to copy, Esc to close.
 - **Filters** — narrow by content **type**, source **app**, **date** (today /
@@ -185,6 +185,21 @@ Artifacts land in `build/Shelf.app`.
 
 If you rebuild, macOS may require re-granting Accessibility because the ad-hoc
 signature changes. A stable (Developer ID) signature avoids that — see below.
+
+### Troubleshooting permissions
+
+After an **update**, paste-back may stop working and Console may log
+`"... lost access to protected data"`. The ad-hoc signature changed, so macOS
+(TCC) dropped the old Accessibility grant. The log line itself is harmless; to
+restore paste-back:
+
+```bash
+tccutil reset Accessibility com.yindia.shelf
+```
+
+Then relaunch and re-enable Shelf under
+**System Settings ▸ Privacy & Security ▸ Accessibility**. A Developer ID
+signature would make the grant survive updates.
 
 ## Releases & distribution
 

@@ -30,8 +30,11 @@ public final class HotKey {
     }
 
     /// Installs the hotkey. Call once at startup.
+    /// Returns `false` if the OS refused the chord (e.g. a system-reserved combo
+    /// like ⌘Space or ⌥⌘Space) so callers can surface it instead of failing silently.
     @MainActor
-    public func register(_ combo: Combo, id: UInt32 = 1) {
+    @discardableResult
+    public func register(_ combo: Combo, id: UInt32 = 1) -> Bool {
         let hotKeyID = EventHotKeyID(signature: Self.signature, id: id)
         Self.registry.store(id: id, action: onFire)
 
@@ -46,7 +49,10 @@ public final class HotKey {
             return noErr
         }, 1, &eventType, nil, &handler)
 
-        RegisterEventHotKey(combo.keyCode, combo.modifiers, hotKeyID, GetApplicationEventTarget(), 0, &ref)
+        let status = RegisterEventHotKey(
+            combo.keyCode, combo.modifiers, hotKeyID, GetApplicationEventTarget(), 0, &ref
+        )
+        return status == noErr
     }
 
     @MainActor
@@ -81,4 +87,5 @@ public enum HotKeyCodes {
     public static let cmd = UInt32(cmdKey)
     public static let option = UInt32(optionKey)
     public static let shift = UInt32(shiftKey)
+    public static let control = UInt32(controlKey)
 }

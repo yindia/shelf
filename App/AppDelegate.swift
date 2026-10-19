@@ -250,16 +250,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    // MARK: Hotkey — ⇧⌘V
+    // MARK: Hotkey — ⇧⌘V (carousel), ⌃⌘V (search)
 
     private func setUpHotKey() {
         let hotKey = HotKey { [weak self] in self?.togglePanel() }
         hotKey.register(.init(keyCode: HotKeyCodes.v, modifiers: HotKeyCodes.cmd | HotKeyCodes.shift))
         self.hotKey = hotKey
 
+        // ⌃⌘V — not ⌥⌘Space, which macOS reserves for the Finder Spotlight window
+        // and would silently refuse to register.
         let spotlightHotKey = HotKey { [weak self] in self?.toggleSpotlight() }
-        spotlightHotKey.register(.init(keyCode: HotKeyCodes.space,
-                                       modifiers: HotKeyCodes.cmd | HotKeyCodes.option), id: 2)
+        let ok = spotlightHotKey.register(.init(keyCode: HotKeyCodes.v,
+                                                modifiers: HotKeyCodes.cmd | HotKeyCodes.control), id: 2)
+        if !ok { NSLog("Shelf: failed to register search hotkey (⌃⌘V) — likely in use by another app") }
         self.spotlightHotKey = spotlightHotKey
     }
 
