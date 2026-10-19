@@ -17,7 +17,7 @@ public final class SystemPasteboard: PasteboardReading, PasteboardWriting, @unch
         UTIs.utf8PlainText, UTIs.plainText, UTIs.text,
     ]
 
-    private let log = Logger(subsystem: "com.example.shelf", category: "capture")
+    private let log = Logger(subsystem: "com.yindia.shelf", category: "capture")
 
     public init(pasteboard: NSPasteboard = .general) {
         self.pasteboard = pasteboard
@@ -64,7 +64,7 @@ public final class SystemPasteboard: PasteboardReading, PasteboardWriting, @unch
         }
         if markSynthetic {
             // Flag our own write so the capture loop can ignore it.
-            item.setString("com.example.shelf", forType: NSPasteboard.PasteboardType(UTIs.source))
+            item.setString("com.yindia.shelf", forType: NSPasteboard.PasteboardType(UTIs.source))
         }
         pasteboard.writeObjects([item])
     }

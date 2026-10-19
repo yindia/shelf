@@ -102,7 +102,7 @@ public struct ClipItemDraft: Sendable, Equatable {
 
     /// Builds a draft for a user-created plain-text clip (New Text Item).
     public static func text(_ string: String, listID: UUID = CollectionSeed.historyID,
-                            sourceBundleID: String = "com.example.shelf") -> ClipItemDraft {
+                            sourceBundleID: String = "com.yindia.shelf") -> ClipItemDraft {
         let reps = [CapturedRepresentation(typeIdentifier: UTIs.utf8PlainText, data: Data(string.utf8))]
         return ClipItemDraft(kind: .text, fingerprint: Fingerprint.make(reps),
                              representations: reps, sourceBundleID: sourceBundleID, listID: listID)

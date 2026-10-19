@@ -61,7 +61,7 @@ public actor CaptureManager {
 
     public func start() {
         guard timer == nil else { return }
-        let queue = DispatchQueue(label: "com.example.shelf.capture")
+        let queue = DispatchQueue(label: "com.yindia.shelf.capture")
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + config.pollInterval, repeating: config.pollInterval)
         timer.setEventHandler { [weak self] in

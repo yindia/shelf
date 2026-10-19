@@ -27,6 +27,6 @@ cask "shelf" do
 
   zap trash: [
     "~/Library/Application Support/ShelfApp",
-    "~/Library/Preferences/com.example.shelf.plist",
+    "~/Library/Preferences/com.yindia.shelf.plist",
   ]
 end

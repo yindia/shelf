@@ -73,11 +73,11 @@ enum CardMeta {
 enum SourceAppIcon {
     // NSCache is internally thread-safe; one fetch per bundle id (the spec's intent).
     nonisolated(unsafe) private static let cache = NSCache<NSString, NSImage>()
-    private static let log = Logger(subsystem: "com.example.shelf", category: "source-icon")
+    private static let log = Logger(subsystem: "com.yindia.shelf", category: "source-icon")
 
     @MainActor
     static func image(for bundleID: String?) -> NSImage? {
-        guard let bundleID, !bundleID.isEmpty, bundleID != "com.example.shelf" else {
+        guard let bundleID, !bundleID.isEmpty, bundleID != "com.yindia.shelf" else {
             log.debug("icon: no usable bundleID (\(bundleID ?? "nil")) -> fallback symbol")
             return nil
         }
@@ -102,7 +102,7 @@ enum SourceAppIcon {
     /// Localized app name for a bundle id (for VoiceOver labels), if resolvable.
     @MainActor
     static func name(for bundleID: String?) -> String? {
-        guard let bundleID, !bundleID.isEmpty, bundleID != "com.example.shelf" else { return nil }
+        guard let bundleID, !bundleID.isEmpty, bundleID != "com.yindia.shelf" else { return nil }
         if let hit = names[bundleID] { return hit }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
               let bundle = Bundle(url: url), let name = appName(from: bundle) else { return nil }
