@@ -1,121 +1,70 @@
+<div align="center">
+
 # Shelf
 
+**Your clipboard, with superpowers.**
+
 A native macOS clipboard manager — a keyboard-first, horizontal carousel of live
-preview **cards** (not a text list) on a translucent glass shelf pinned to the
-bottom of your screen. **Local-only**, **unsandboxed**, macOS 14+, built with
-AppKit + SwiftUI and Swift 6 strict concurrency.
+preview **cards** (not a boring text list) on a translucent glass shelf pinned to
+the bottom of your screen.
+
+[![CI](https://github.com/yindia/shelf/actions/workflows/ci.yml/badge.svg)](https://github.com/yindia/shelf/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/yindia/shelf?sort=semver)](https://github.com/yindia/shelf/releases/latest)
+[![Platform](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)](https://www.apple.com/macos/)
+[![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](https://www.swift.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ![Shelf — light](docs/screenshots/cards-light.png)
 ![Shelf — dark](docs/screenshots/cards-dark.png)
+
+</div>
 
 > Inspired by [Paste](https://pasteapp.io/), but an independent implementation:
 > Shelf contains **no** code, assets, or measurements from it, and uses its own
 > name, icon, geometry, palette, and design tokens.
 
-## Features
+---
 
-### Capture & content types
-- **Rich preview cards** per content type — text, rich text/HTML, code
-  (syntax-highlighted), image (thumbnail + dimensions), video (QuickLook poster
-  + duration), audio (artwork or waveform), link (og:image/favicon + title +
-  domain), map (`MKMapSnapshotter`), color (swatch + hex), and files. Previews
-  are generated off-main via QuickLook / AVFoundation and cached per item.
-- **Automatic capture** — `DispatchSourceTimer` polls `NSPasteboard.changeCount`,
-  classifies, SHA-256 dedups, and stores to CoreData.
-- **OCR image search** — Vision recognizes text inside screenshots/images at
-  capture; that text is indexed so images are findable by their contents.
+## Why Shelf
 
-### Find
-- **Power Search** — fuzzy, typo-tolerant matching with intelligent ranking
-  (prefix › substring › fuzzy, then recency). Searches text, titles, OCR text,
-  and URLs across **all** pinboards.
-- **Global Spotlight-style search** — **⌃⌘V** opens a centered, floating glass
-  search window (Spotlight/Raycast-style) over your whole history. ↑/↓ to move,
-  Enter to paste, ⌘C to copy, Esc to close.
-- **Filters** — narrow by content **type**, source **app**, **date** (today /
-  7 / 30 days), and **pinboard**, shown as removable visual tokens.
-- **Jump to History** — from any search result, **Show in Clipboard / Show in
-  Pinboard** (or **⌘G**) reveals the item in its collection, in context.
+Everything you copy — text, links, images, files, colors, code — lands on a fast,
+keyboard-first glass shelf. Find anything instantly (including text **inside**
+screenshots), preview with Quick Look, organize into pinboards, and paste it back
+anywhere. Built with AppKit + SwiftUI and Swift 6 strict concurrency; **local-first**
+with **opt-in** iCloud sync.
 
-### Organize
-- **Collections (pinboards)** with color-coded headers; **drag a card onto a
-  tab** to refile it; create with **＋**, delete via right-click → Delete.
-- **Pin / Unpin** — pinned clips sort to the top (📌 badge).
-- **Opt-in auto-categorization** — rules by content kind or text/regex route new
-  clips into collections (default off; Clipboard History always shows all).
-- **Clear All** and **lazy loading** (first 30, then page-in on scroll).
+## Highlights
 
-### Use an item
-- **Paste-back** — restores all representations and posts a synthetic ⌘V into
-  the previously-active app (Accessibility-gated; copy-only fallback otherwise).
-- **Quick Look** — **Space** previews images/video/audio/PDF/files; **Esc** closes.
-- **Edit** — rename a clip and edit plain text in place.
-- **Plain-text paste** — hold **Option** (or “Paste without Formatting”).
-- **Copy / drag as file** — paste images into any app or webpage as a file.
-- **Rotate image**, **Open link** (**⌘O**), and **Share…** (system share sheet).
-- **New Text Item** — create a clip from scratch with **⌘N**.
+- 🗂 **Rich preview cards** per content type — text, rich text/HTML, code
+  (syntax-highlighted), images (thumbnail + dimensions), video (poster + duration),
+  audio (artwork/waveform), links (thumbnail + page title + domain), maps, colors
+  (the card fills with the copied swatch), and files.
+- 🔎 **Power Search** — fuzzy, typo-tolerant ranking with **inline filter tokens**:
+  type to narrow by content **type**, source **app**, **date**, or **pinboard** via
+  an autocomplete dropdown. Searches text, titles, URLs, and **OCR text from images**.
+- 🧲 **Paste Stack** — press **⇧⌘C** to stack copies, then **⌘V** pastes them one by
+  one, top-to-bottom, across any apps. Reorder or remove items in a floating window.
+- 🧠 **Auto-categorization** — new clips file themselves into Links, Notes, Code,
+  Images, Colors, Files, and Media automatically. Clipboard History always shows all.
+- 🔒 **Privacy-first** — hide from screen sharing, skip confidential content, exclude
+  apps, and set a retention window. Pinned items are always kept.
+- ☁️ **Opt-in iCloud sync** — mirror your history across Macs (CloudKit-entitled build).
+- ⌨️ **Keyboard-first & native** — real `NSVisualEffectView` glass, continuous corners,
+  VoiceOver labels, and Reduce Transparency / Motion / Increase Contrast support.
 
-### Privacy
-- **Show during screen sharing** toggle — hide Shelf from recording, sharing,
-  and screenshots (`NSWindow.sharingType`).
-- **Ignore confidential content** — skip items apps mark confidential (passwords).
-- **Exclude apps** — pick apps whose copies are never captured.
-- **Retention window** — keep history for 1 day … forever (default 1 month); old
-  clips auto-clear while **pinned items and pinboards are always kept**.
-- **Pause/Resume (⌘T)** — stop collecting while you handle something sensitive.
+## Keyboard shortcuts
 
-### Feel
-- **Keyboard-first** — ⇧⌘V to summon, ← → to move, ⌘1–9 to pick + paste, ⏎ to
-  paste, ⎋ to dismiss, Space to preview, ⌘G jump, ⌘N new, ⌘O open.
-- **Native materials** — real `NSVisualEffectView` glass that blurs the desktop
-  and tracks light/dark; layered shadows; continuous corners.
-- **Accessible** — WCAG AA header contrast, VoiceOver labels, and full support
-  for Reduce Transparency / Reduce Motion / Increase Contrast.
-
-### Menu bar
-Show Shelf · New Text Item (⌘N) · Pause/Resume Capture (⌘T) · Clear All History ·
-Settings (Privacy, Auto-Categorization) · About · Help · Quit.
-
-## How it works
-
-Capture → classify → dedup → store → render → paste-back:
-
-- **Capture:** a `DispatchSourceTimer` (~0.3 s) polls `NSPasteboard.changeCount`,
-  classifies the content, SHA-256 dedups, and writes to CoreData. Skips
-  `org.nspasteboard.ConcealedType` / `TransientType` and ignored bundle IDs.
-- **Activation:** menu-bar `NSStatusItem` + global hotkey **⇧⌘V** (Carbon
-  `RegisterEventHotKey`). Agent app (`LSUIElement`), no Dock icon. The panel is a
-  non-activating floating `NSPanel` pinned flush to the screen bottom.
-
-Not implemented (needs frameworks out of scope for this build): CloudKit sync /
-shared pinboards, in-app web browser link editing, iPhone document scanning
-(Continuity Camera), and Shortcuts / App Intents automation.
-
-## Project layout
-
-```
-Package.swift            Root SPM executable → depends on the three local packages
-App/                     Xcode-less app target
-  main.swift             NSApplication bootstrap (.accessory policy)
-  AppDelegate.swift      Status item, hotkey, panel toggle, paste-back wiring
-  AppEnvironment.swift   Composition root (no global singletons)
-  PanelController.swift  NSPanel + SwiftUI host + key monitor
-Packages/
-  Core/                  UI-free, platform-free, unit-tested
-    Model, Pasteboard protocols, Classifier, Fingerprint (SHA-256),
-    CoreDataModel (programmatic), PersistentStore, Repository, CaptureManager
-    Tests/CoreTests      classification, dedup, capture (with a mock pasteboard)
-  Platform/              NSPasteboard I/O, CGEvent paste-back, Carbon hotkey, AX
-  UI/                    Theme (all tunable constants), cards, carousel, view model
-Resources/
-  Info.plist             LSUIElement, NSPasteboardUsageDescription
-  Shelf.entitlements app-sandbox = false (unsandboxed direct build)
-Makefile                 build / bundle / sign / run / test
-```
-
-**Tunable constants** live in `Packages/UI/Sources/UI/Theme.swift` — card width/
-height/radius/spacing, blur material + tint, selection scale/shadow, and spring
-timing. Adjust there to tune feel against the reference app.
+| Shortcut | Action |
+| --- | --- |
+| **⇧⌘V** | Open / dismiss the shelf |
+| **⌃⌘V** | Open the Spotlight-style search |
+| **⇧⌘C** | Toggle Paste Stack |
+| **← →** | Move selection · **⌘1–9** pick & paste |
+| **⏎** | Paste selected · **⇧⏎ / ⌥** paste as plain text |
+| **Space** | Quick Look · **⎋** dismiss |
+| **⌘F** | Search · **⌘G** jump to item in its collection |
+| **⌘O** | Open link · **⌘N** new text item · **⌘T** pause/resume |
+| **⌘,** | Settings |
 
 ## Install
 
@@ -126,8 +75,8 @@ brew tap yindia/shelf https://github.com/yindia/shelf
 brew install --cask shelf
 ```
 
-Upgrades: `brew upgrade --cask shelf`. The cask clears the Gatekeeper quarantine
-flag automatically (the build is ad-hoc signed, not notarized).
+Upgrade with `brew upgrade --cask shelf`. The cask clears the Gatekeeper
+quarantine flag automatically (builds are ad-hoc signed, not notarized).
 
 ### Direct download
 
@@ -136,88 +85,91 @@ drag **Shelf** to Applications.
 
 > Builds are **ad-hoc signed, not notarized**, so Gatekeeper warns on first run.
 > Right-click **Shelf.app → Open** once, or run
-> `xattr -dr com.apple.quarantine /Applications/Shelf.app`. Grant **Accessibility**
-> when prompted (needed for paste-back).
+> `xattr -dr com.apple.quarantine /Applications/Shelf.app`.
 
-To cut a release, push a tag — CI builds and attaches the DMG:
-
-```bash
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-## Requirements
-
-- **Xcode 16+** (ships the Swift 6.2 toolchain) **or** the standalone Swift 6
-  toolchain. Verify: `swift --version` → `6.x`.
-- macOS 14 or newer.
-- **No paid Apple Developer account** needed for local runs — the Makefile
-  ad-hoc-signs (`codesign --sign -`). An account is required only later for
-  **notarization / distribution** outside your own machine.
-
-## Build & run
-
-SPM resolves the three local packages by relative path — no network fetch.
-
-```bash
-# unit tests (Core)
-make test            # or: cd Packages/Core && swift test
-
-# build, bundle into Shelf.app, ad-hoc sign, and launch
-make run
-```
-
-Or open in Xcode: `File ▸ Open…` the root **`Package.swift`**. Xcode resolves the
-local packages automatically. (Xcode's SPM runner won't apply the Info.plist /
-agent behavior — use `make run` for the real `.app`.)
-
-Artifacts land in `build/Shelf.app`.
-
-## First launch — what to grant
+## First launch
 
 1. A **Shelf** icon appears in the menu bar (no Dock icon by design).
-2. macOS shows an **Accessibility** permission prompt (Shelf requests it on
-   launch, and again if you try to paste before granting). Paste-back posts a
-   synthetic ⌘V into other apps, which requires:
-   **System Settings ▸ Privacy & Security ▸ Accessibility → enable Shelf.**
-   Capture and the UI work without it; only paste-back needs it.
-3. Copy a few things (text, an image, a color from a color picker), then press
-   **⇧⌘V** (or use the menu-bar item) to open the carousel.
+2. Grant **Accessibility** when prompted — **System Settings ▸ Privacy & Security ▸
+   Accessibility → enable Shelf**. It's required for paste-back (synthetic ⌘V) and
+   Paste Stack. Capture and the UI work without it.
+3. Copy a few things, then press **⇧⌘V** to open the shelf.
 
-If you rebuild, macOS may require re-granting Accessibility because the ad-hoc
-signature changes. A stable (Developer ID) signature avoids that — see below.
+<details>
+<summary><b>Troubleshooting permissions</b></summary>
 
-### Troubleshooting permissions
-
-After an **update**, paste-back may stop working and Console may log
+After an update, paste-back may stop working and Console may log
 `"... lost access to protected data"`. The ad-hoc signature changed, so macOS
-(TCC) dropped the old Accessibility grant. The log line itself is harmless; to
-restore paste-back:
+(TCC) dropped the old Accessibility grant. To restore it:
 
 ```bash
 tccutil reset Accessibility com.yindia.shelf
 ```
 
-Then relaunch and re-enable Shelf under
-**System Settings ▸ Privacy & Security ▸ Accessibility**. A Developer ID
-signature would make the grant survive updates.
+Then relaunch and re-enable Shelf under Privacy & Security ▸ Accessibility. A
+Developer ID signature would make the grant survive updates.
+</details>
 
-## Releases & distribution
+## Build from source
 
-- `make dmg` packages the built app into `build/Shelf.dmg` (drag-to-Applications).
-- Pushing a `v*` tag runs `.github/workflows/release.yml`, which tests, builds,
-  stamps the version into `Info.plist`, packages the DMG, and publishes a GitHub
-  Release with auto-generated notes.
+Requirements: **macOS 14+** and **Swift 6** (Xcode 16+ or the standalone
+toolchain; `swift --version` → `6.x`). No paid Apple Developer account needed for
+local runs — the Makefile ad-hoc-signs.
 
-For a warning-free install outside your own machine you'll want a paid Apple
-Developer account to sign with a **Developer ID Application** certificate and
-**notarize** (`xcrun notarytool submit`) + **staple** the app/DMG. The current
-workflow ships ad-hoc-signed builds; see the release notes for the Gatekeeper
-workaround.
+```bash
+make test     # run the Core unit tests
+make run      # build, bundle into Shelf.app, ad-hoc sign, and launch
+make dmg      # package build/Shelf.dmg
+```
+
+SPM resolves the three local packages by relative path — no network fetch. You can
+also open the root `Package.swift` in Xcode (use `make run` for the real agent `.app`).
+
+## Architecture
+
+Capture → classify → dedup → store → render → paste-back.
+
+```
+App/                     Agent app target (LSUIElement, no Dock icon)
+  AppDelegate            Status item, global hotkeys, panel/stack/settings wiring
+  AppEnvironment         Composition root (no global singletons)
+  PanelController        Floating NSPanel + SwiftUI host + key monitor
+  PasteStackController   Paste Stack window + global ⌘V event tap
+  SettingsWindowController  Unified settings window
+Packages/
+  Core/      UI-free, platform-free, unit-tested: Model, Classifier,
+             Fingerprint (SHA-256), CoreData store, Repository, CaptureManager,
+             PowerSearch, SearchSuggestions, PasteStackModel
+  Platform/  NSPasteboard I/O, CGEvent paste-back, Carbon hotkeys, AX, ⌘V tap
+  UI/        Theme (all tunable constants), cards, carousel, Power Search tokens,
+             spotlight, settings panes, view models
+```
+
+- **Capture:** a `DispatchSourceTimer` (~0.3 s) polls `NSPasteboard.changeCount`,
+  classifies the content, SHA-256 dedups, and writes to CoreData. Skips
+  `org.nspasteboard.ConcealedType` / `TransientType` and excluded apps.
+- **Sync:** opt-in `NSPersistentCloudKitContainer`, falling back to a local store
+  when CloudKit isn't entitled.
+- **Tuning:** all card geometry, materials, motion, and palette live in
+  `Packages/UI/Sources/UI/Theme.swift`.
+
+## Releases
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which tests, builds a
+universal (arm64 + x86_64) binary, packages the DMG, and publishes a GitHub Release.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+For a warning-free install on other machines, sign with a **Developer ID
+Application** certificate and **notarize** + **staple** the app/DMG. iCloud sync
+likewise requires a CloudKit-entitled, Developer ID signed build.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). CI (GitHub Actions) builds and runs the
-Core tests on macOS for every PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md). CI builds and runs the Core tests on macOS
+for every PR.
 
 ## License
 
