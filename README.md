@@ -41,7 +41,15 @@ with **opt-in** iCloud sync.
   (the card fills with the copied swatch), and files.
 - 🔎 **Power Search** — fuzzy, typo-tolerant ranking with **inline filter tokens**:
   type to narrow by content **type**, source **app**, **date**, or **pinboard** via
-  an autocomplete dropdown. Searches text, titles, URLs, and **OCR text from images**.
+  an autocomplete dropdown (OR within a filter, AND across filters). Searches text,
+  titles, URLs, and **OCR text from images**, with an on-device **semantic**
+  fallback that finds clips by meaning when there's no exact match.
+- 🧩 **Apple Intelligence** (on-device, private, free, macOS 26+) — smart **titles
+  & summaries** for long clips, AI **auto-categorization** of ambiguous text, and
+  **Writing Tools** (Rewrite / Proofread / Summarize) in the editor. Degrades
+  gracefully on Macs without Apple Intelligence.
+- 🏷 **Multi-category** — an item can live in several pinboards at once (**Add to
+  Category**), not just move between them.
 - 🧲 **Paste Stack** — press **⇧⌘C** to stack copies, then **⌘V** pastes them one by
   one, top-to-bottom, across any apps. Reorder or remove items in a floating window.
 - 🧠 **Auto-categorization** — new clips file themselves into Links, Notes, Code,
@@ -150,6 +158,9 @@ Packages/
   `org.nspasteboard.ConcealedType` / `TransientType` and excluded apps.
 - **Sync:** opt-in `NSPersistentCloudKitContainer`, falling back to a local store
   when CloudKit isn't entitled.
+- **Intelligence:** `ClipIntelligence` protocol in `Core`; a `FoundationModels`
+  implementation in `Platform` behind `#if canImport(FoundationModels)` (compiles
+  out on older SDKs) with a no-op fallback. Semantic search uses `NLEmbedding`.
 - **Tuning:** all card geometry, materials, motion, and palette live in
   `Packages/UI/Sources/UI/Theme.swift`.
 
