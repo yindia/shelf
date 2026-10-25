@@ -45,6 +45,10 @@ public actor CaptureManager {
     private var suppressedFingerprints: Set<String> = []
     /// Notified after each new item is persisted (e.g. to push onto Paste Stack).
     private var onNewItem: (@Sendable (ClipItemModel) -> Void)?
+    /// On-device intelligence used to categorize ambiguous text (no-op by default).
+    private var intelligence: ClipIntelligence = NoopClipIntelligence()
+    /// Non-default collections the AI may route into: display name → id.
+    private var aiCollections: [(name: String, id: UUID)] = []
 
     public init(
         pasteboard: PasteboardReading,
@@ -103,6 +107,12 @@ public actor CaptureManager {
         self.onNewItem = handler
     }
 
+    /// Provide on-device intelligence + the collections it may route text into.
+    public func setIntelligence(_ intelligence: ClipIntelligence, collections: [(name: String, id: UUID)]) {
+        self.intelligence = intelligence
+        self.aiCollections = collections
+    }
+
     /// Toggle whether confidential (concealed) content is ignored.
     public func setIgnoreConfidential(_ value: Bool) {
         config.ignoreConfidential = value
@@ -143,12 +153,21 @@ public actor CaptureManager {
             let imageData = reps.first { $0.typeIdentifier == UTIs.png || $0.typeIdentifier == UTIs.tiff }?.data
             if let imageData { ocrText = await recognizer.recognizeText(in: imageData) }
         }
+        var listID = rules.route(kind: kind, text: text, fallback: config.defaultListID)
+        // When a text clip would land in the catch-all history, let on-device
+        // intelligence pick a better collection (no-op unless available).
+        if listID == config.defaultListID, intelligence.isAvailable, !aiCollections.isEmpty,
+           [.text, .richText, .html].contains(kind), let text, text.count >= 40,
+           let name = await intelligence.categorize(text, into: aiCollections.map(\.name)),
+           let match = aiCollections.first(where: { $0.name == name }) {
+            listID = match.id
+        }
         let draft = ClipItemDraft(
             kind: kind,
             fingerprint: fingerprint,
             representations: reps,
             sourceBundleID: snapshot.sourceBundleID,
-            listID: rules.route(kind: kind, text: text, fallback: config.defaultListID),
+            listID: listID,
             ocrText: ocrText
         )
         if let inserted = try? await repository.insert(draft) {

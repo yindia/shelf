@@ -11,16 +11,41 @@ public final class MediaPreviewLoader: ObservableObject {
     @Published private var infos: [UUID: MediaInfo] = [:]
     @Published private var linkImages: [UUID: NSImage] = [:]
     @Published private var linkTitles: [UUID: String] = [:]
+    @Published private var smartSummaries: [UUID: ClipSummary] = [:]
 
     private let thumbnailProvider: ThumbnailProviding
     private let infoProvider: MediaInfoProviding
+    private let intelligence: ClipIntelligence
     private var inFlightThumbs: Set<UUID> = []
     private var inFlightInfos: Set<UUID> = []
     private var inFlightLinks: Set<UUID> = []
+    private var inFlightSummaries: Set<UUID> = []
 
-    public init(thumbnailProvider: ThumbnailProviding, infoProvider: MediaInfoProviding) {
+    public init(thumbnailProvider: ThumbnailProviding, infoProvider: MediaInfoProviding,
+                intelligence: ClipIntelligence = NoopClipIntelligence()) {
         self.thumbnailProvider = thumbnailProvider
         self.infoProvider = infoProvider
+        self.intelligence = intelligence
+    }
+
+    /// On-device Apple Intelligence title/summary for a long text clip. Returns
+    /// the cached value if ready; otherwise kicks off generation and returns nil.
+    public func smartSummary(for item: ClipItemModel) -> ClipSummary? {
+        if let hit = smartSummaries[item.id] { return hit }
+        guard intelligence.isAvailable else { return nil }
+        guard item.userTitle == nil else { return nil }   // user name wins
+        guard let text = item.plainText, text.count >= 120 else { return nil }
+        guard !inFlightSummaries.contains(item.id) else { return nil }
+        inFlightSummaries.insert(item.id)
+        let id = item.id
+        Task { [intelligence] in
+            let result = await intelligence.summarize(text)
+            await MainActor.run {
+                self.inFlightSummaries.remove(id)
+                if let result { self.smartSummaries[id] = result }
+            }
+        }
+        return nil
     }
 
     /// Cached thumbnail if ready; otherwise kicks off a load and returns nil.

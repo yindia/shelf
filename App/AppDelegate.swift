@@ -77,9 +77,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             Task { await environment.capture.setRules(savedRules) }
+            // Let on-device intelligence categorize ambiguous text into collections.
+            let aiCollections = CollectionSeed.starters.filter { !$0.isDefault }.map { ($0.name, $0.id) }
+            Task { await environment.capture.setIntelligence(environment.intelligence, collections: aiCollections) }
             let previewLoader = MediaPreviewLoader(
                 thumbnailProvider: environment.thumbnailProvider,
-                infoProvider: environment.mediaInfoProvider
+                infoProvider: environment.mediaInfoProvider,
+                intelligence: environment.intelligence
             )
             self.panelController = PanelController(model: model, previewLoader: previewLoader)
             self.panelController?.onQuickLook = { [weak self] in self?.quickLookSelected() }

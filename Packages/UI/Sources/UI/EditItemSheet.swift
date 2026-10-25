@@ -36,7 +36,7 @@ struct EditItemSheet: View {
             if isTextEditable {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Text").font(Theme.footerFont).foregroundStyle(.secondary)
-                    TextEditor(text: $text)
+                    textEditor
                         .font(Theme.bodyFont)
                         .frame(height: 140)
                         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
@@ -55,5 +55,15 @@ struct EditItemSheet: View {
         }
         .padding(20)
         .frame(width: 380)
+    }
+
+    /// A plain TextEditor. On macOS 15.1+ Apple Intelligence Writing Tools
+    /// (Rewrite / Proofread / Summarize) are available here automatically.
+    @ViewBuilder private var textEditor: some View {
+        if #available(macOS 15.0, *) {
+            TextEditor(text: $text).writingToolsBehavior(.complete)
+        } else {
+            TextEditor(text: $text)
+        }
     }
 }

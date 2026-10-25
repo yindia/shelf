@@ -15,6 +15,7 @@ public final class SpotlightViewModel: ObservableObject {
     @Published public var filters = SearchFilters()
     @Published public private(set) var searchResults: [ClipItemModel] = []
     private var cancellables = Set<AnyCancellable>()
+    private let semanticRanker = SemanticRanker()
 
     private let itemRepo: ItemRepositoryReading
     private let collectionRepo: CollectionRepository
@@ -44,7 +45,11 @@ public final class SpotlightViewModel: ObservableObject {
                 if text.trimmingCharacters(in: .whitespaces).isEmpty && filters.isEmpty {
                     self.searchResults = Array(items.prefix(50))
                 } else {
-                    self.searchResults = PowerSearch.run(items, text: text, filters: filters)
+                    var results = PowerSearch.run(items, text: text, filters: filters)
+                    if results.isEmpty, !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                        results = self.semanticRanker.rank(items, query: text)
+                    }
+                    self.searchResults = results
                 }
             }
             .store(in: &cancellables)

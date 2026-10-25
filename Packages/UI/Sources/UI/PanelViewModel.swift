@@ -39,6 +39,7 @@ public final class PanelViewModel: ObservableObject {
     private let onDismiss: @MainActor () -> Void
     private var itemsTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+    private let semanticRanker = SemanticRanker()
     /// Debounced, cached Power Search results so we don't re-rank on every render.
     @Published public private(set) var searchResults: [ClipItemModel] = []
     /// Cached distinct source apps (recomputed only when the corpus changes).
@@ -82,7 +83,13 @@ public final class PanelViewModel: ObservableObject {
             .debounce(for: .milliseconds(120), scheduler: DispatchQueue.main)
             .sink { [weak self] text, filters, items, searching in
                 guard let self else { return }
-                self.searchResults = searching ? PowerSearch.run(items, text: text, filters: filters) : []
+                guard searching else { self.searchResults = []; return }
+                var results = PowerSearch.run(items, text: text, filters: filters)
+                // No lexical hit → fall back to on-device semantic similarity.
+                if results.isEmpty, !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                    results = self.semanticRanker.rank(items, query: text)
+                }
+                self.searchResults = results
             }
             .store(in: &cancellables)
     }

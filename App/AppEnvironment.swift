@@ -14,6 +14,8 @@ final class AppEnvironment {
     let thumbnailProvider: QuickLookThumbnailProvider
     let mediaInfoProvider: AVMediaInfoProvider
     let quickLook: QuickLookPresenter
+    /// On-device Apple Intelligence (Foundation Models) when available, else no-op.
+    let intelligence: ClipIntelligence = ClipIntelligenceFactory.make()
 
     init() throws {
         let store = try PersistentStore.onDisk(

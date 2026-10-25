@@ -169,6 +169,7 @@ struct ItemCardView: View {
     /// content kind (reference shows both cases).
     private var headerTitle: String {
         if let name = item.userTitle, !name.isEmpty { return name }
+        if let smart = loader.smartSummary(for: item)?.title, !smart.isEmpty { return smart }
         return item.kind.rawValue.capitalized
     }
 
