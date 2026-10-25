@@ -31,8 +31,10 @@ public protocol ItemRepositoryWriting: Sendable {
     func deleteAll() async throws
     /// Clears history items older than `cutoff` (keeps pinned + pinboard items).
     func prune(olderThan cutoff: Date) async throws
-    /// Refiles an item into a different collection.
+    /// Refiles an item into a different collection (changes its origin).
     func setList(itemID: UUID, listID: UUID) async throws
+    /// Adds/removes the item's membership in a collection without moving it.
+    func updateMembership(itemID: UUID, listID: UUID, add: Bool) async throws
     /// Renames an item (nil clears the custom name).
     func setTitle(itemID: UUID, title: String?) async throws
     /// Replaces an item's plain-text content (Edit in place).
@@ -236,6 +238,31 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
         }
     }
 
+    /// Add (`add == true`) or remove the item's membership in `listID` without
+    /// changing its origin `listID` — multi-category copy.
+    public func updateMembership(itemID: UUID, listID: UUID, add: Bool) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            store.container.performBackgroundTask { context in
+                do {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "Item")
+                    request.predicate = NSPredicate(format: "id == %@", itemID as CVarArg)
+                    request.fetchLimit = 1
+                    if let object = try context.fetch(request).first {
+                        var ids = Self.parseLists(object.value(forKey: "extraLists") as? String)
+                        let origin = object.value(forKey: "listID") as? UUID
+                        if add { ids.insert(listID) } else { ids.remove(listID) }
+                        ids.subtract(origin.map { [$0] } ?? [])   // origin isn't an "extra"
+                        object.setValue(Self.encodeLists(ids), forKey: "extraLists")
+                        try context.save()
+                    }
+                    continuation.resume(returning: ())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     public func prune(olderThan cutoff: Date) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             store.container.performBackgroundTask { context in
@@ -299,9 +326,13 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
             NSSortDescriptor(key: "createdAt", ascending: false),
         ]
         request.fetchLimit = limit
-        // The default history collection (or nil) shows everything.
+        // The default history collection (or nil) shows everything. A specific
+        // collection shows items whose origin is it OR that were copied into it.
         if let listID, listID != CollectionSeed.historyID {
-            request.predicate = NSPredicate(format: "listID == %@", listID as CVarArg)
+            request.predicate = NSPredicate(
+                format: "listID == %@ OR extraLists CONTAINS %@",
+                listID as CVarArg, listID.uuidString
+            )
         }
         return try context.fetch(request).compactMap(Self.model(from:))
     }
@@ -332,10 +363,21 @@ public final class CoreDataItemRepository: ItemRepositoryReading, ItemRepository
             sourceBundleID: object.value(forKey: "sourceBundleID") as? String,
             listID: object.value(forKey: "listID") as? UUID,
             representations: reps,
+            extraLists: Self.parseLists(object.value(forKey: "extraLists") as? String),
             userTitle: object.value(forKey: "userTitle") as? String,
             ocrText: object.value(forKey: "ocrText") as? String,
             isPinned: object.value(forKey: "isPinned") as? Bool ?? false
         )
+    }
+
+    /// Parse the comma-joined extra-list UUID string.
+    static func parseLists(_ string: String?) -> Set<UUID> {
+        guard let string, !string.isEmpty else { return [] }
+        return Set(string.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
+    }
+
+    static func encodeLists(_ ids: Set<UUID>) -> String {
+        ids.map(\.uuidString).joined(separator: ",")
     }
 
     private static func application(for bundleID: String, in context: NSManagedObjectContext) throws -> NSManagedObject {

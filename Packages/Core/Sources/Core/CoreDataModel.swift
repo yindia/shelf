@@ -38,6 +38,8 @@ enum ClipModel {
             attr("fingerprint", .stringAttributeType),
             attr("sourceBundleID", .stringAttributeType, optional: true),
             attr("listID", .UUIDAttributeType, optional: true),
+            // Comma-joined extra collection UUIDs (multi-category membership).
+            attr("extraLists", .stringAttributeType, optional: true),
             attr("userTitle", .stringAttributeType, optional: true),
             attr("ocrText", .stringAttributeType, optional: true),
             boolAttr("isPinned", default: false),

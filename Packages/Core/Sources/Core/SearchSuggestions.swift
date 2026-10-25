@@ -45,14 +45,16 @@ public enum SearchSuggestions {
             && !active.kinds.contains(k) && k.rawValue.lowercased().hasPrefix(q) {
             out.append(.kind(k))
         }
-        for a in apps where !active.apps.contains(a.id) && a.name.lowercased().hasPrefix(q) {
+        // Apps match by substring so "chrome" finds "Google Chrome" (the bundle id
+        // is com.google.Chrome, so prefix matching would miss it).
+        for a in apps where !active.apps.contains(a.id) && a.name.lowercased().contains(q) {
             out.append(.app(bundleID: a.id, name: a.name))
         }
         for d in DateFilter.allCases where d != .any && active.date != d && d.label.lowercased().hasPrefix(q) {
             out.append(.date(d))
         }
         for c in collections where !c.isDefault
-            && !active.pinboards.contains(c.id) && c.name.lowercased().hasPrefix(q) {
+            && !active.pinboards.contains(c.id) && c.name.lowercased().contains(q) {
             out.append(.pinboard(id: c.id, name: c.name))
         }
         return Array(out.prefix(limit))

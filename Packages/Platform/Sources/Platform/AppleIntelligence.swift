@@ -61,9 +61,10 @@ public struct FoundationModelsIntelligence: ClipIntelligence {
 public enum ClipIntelligenceFactory {
     public static func make() -> ClipIntelligence {
         #if canImport(FoundationModels)
+        // Don't probe model availability here (it can block launch); each call
+        // guards on isAvailable at use time.
         if #available(macOS 26.0, *) {
-            let model = FoundationModelsIntelligence()
-            if model.isAvailable { return model }
+            return FoundationModelsIntelligence()
         }
         #endif
         return NoopClipIntelligence()

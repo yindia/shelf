@@ -116,7 +116,10 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
     public let createdAt: Date
     public let fingerprint: String
     public let sourceBundleID: String?
+    /// Origin collection (drives the header color).
     public let listID: UUID?
+    /// Additional collections this item has been copied into (multi-category).
+    public let extraLists: Set<UUID>
     public let representations: [CapturedRepresentation]
     /// User-given name (Edit → rename); overrides the derived title in the UI.
     public let userTitle: String?
@@ -124,6 +127,13 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
     public let ocrText: String?
     /// Pinned items sort to the top of their collection.
     public let isPinned: Bool
+
+    /// Every collection this item belongs to (origin + copies).
+    public var listIDs: Set<UUID> {
+        var all = extraLists
+        if let listID { all.insert(listID) }
+        return all
+    }
 
     public init(
         id: UUID,
@@ -133,6 +143,7 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         sourceBundleID: String?,
         listID: UUID?,
         representations: [CapturedRepresentation],
+        extraLists: Set<UUID> = [],
         userTitle: String? = nil,
         ocrText: String? = nil,
         isPinned: Bool = false
@@ -143,6 +154,7 @@ public struct ClipItemModel: Identifiable, Sendable, Equatable {
         self.fingerprint = fingerprint
         self.sourceBundleID = sourceBundleID
         self.listID = listID
+        self.extraLists = extraLists
         self.representations = representations
         self.userTitle = userTitle
         self.ocrText = ocrText

@@ -69,12 +69,21 @@ public enum PowerSearch {
             .map(\.item)
     }
 
+    /// Items that pass the structured filters (no text match) — used to constrain
+    /// the semantic-search fallback to the same filters as lexical search.
+    public static func filter(_ items: [ClipItemModel], filters: SearchFilters, now: Date = Date()) -> [ClipItemModel] {
+        items.filter { passesFilters($0, filters, now: now) }
+    }
+
     private static func passesFilters(_ item: ClipItemModel, _ f: SearchFilters, now: Date) -> Bool {
         if !f.kinds.isEmpty, !f.kinds.contains(item.kind) { return false }
         if !f.apps.isEmpty {
             guard let app = item.sourceBundleID, f.apps.contains(app) else { return false }
         }
-        if !f.pinboards.isEmpty, !f.pinboards.contains(item.listID ?? CollectionSeed.historyID) { return false }
+        if !f.pinboards.isEmpty {
+            let member = item.listIDs.isEmpty ? [CollectionSeed.historyID] : item.listIDs
+            if f.pinboards.isDisjoint(with: member) { return false }
+        }
         if !f.date.matches(item.createdAt, now: now) { return false }
         return true
     }

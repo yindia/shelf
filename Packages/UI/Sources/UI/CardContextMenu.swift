@@ -80,12 +80,25 @@ struct CardContextMenu: View {
                 Button {
                     model.move(itemID: item.id, to: collection.id)
                 } label: {
-                    // Checkmark the current collection.
+                    // Checkmark the origin collection.
                     if collection.id == (item.listID ?? CollectionSeed.historyID) {
                         Label(collection.name, systemImage: "checkmark")
                     } else {
                         Text(collection.name)
                     }
+                }
+            }
+        }
+
+        // Add to Category: multi-membership — an item can live in several pinboards.
+        Menu("Add to Category") {
+            ForEach(model.collections.filter { !$0.isDefault }) { collection in
+                let isMember = item.listIDs.contains(collection.id)
+                Button {
+                    model.setMembership(itemID: item.id, in: collection.id, member: !isMember)
+                } label: {
+                    if isMember { Label(collection.name, systemImage: "checkmark") }
+                    else { Text(collection.name) }
                 }
             }
         }

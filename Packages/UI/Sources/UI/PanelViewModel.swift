@@ -87,7 +87,7 @@ public final class PanelViewModel: ObservableObject {
                 var results = PowerSearch.run(items, text: text, filters: filters)
                 // No lexical hit → fall back to on-device semantic similarity.
                 if results.isEmpty, !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                    results = self.semanticRanker.rank(items, query: text)
+                    results = self.semanticRanker.rank(PowerSearch.filter(items, filters: filters), query: text)
                 }
                 self.searchResults = results
             }
@@ -401,10 +401,22 @@ public final class PanelViewModel: ObservableObject {
         guard let itemWriter else { return }
         Task {
             try? await itemWriter.setList(itemID: itemID, listID: listID)
-            // Refresh current filter so a card that left the view animates out.
-            if let latest = try? await itemRepo.recentItems(limit: 200, listID: selectedCollectionID) {
-                items = latest
-            }
+            await refreshItems()
+        }
+    }
+
+    /// Copy (add) or remove an item's membership in a collection without moving it.
+    public func setMembership(itemID: UUID, in listID: UUID, member: Bool) {
+        guard let itemWriter else { return }
+        Task {
+            try? await itemWriter.updateMembership(itemID: itemID, listID: listID, add: member)
+            await refreshItems()
+        }
+    }
+
+    private func refreshItems() async {
+        if let latest = try? await itemRepo.recentItems(limit: 200, listID: selectedCollectionID) {
+            items = latest
         }
     }
 

@@ -47,7 +47,7 @@ public final class SpotlightViewModel: ObservableObject {
                 } else {
                     var results = PowerSearch.run(items, text: text, filters: filters)
                     if results.isEmpty, !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                        results = self.semanticRanker.rank(items, query: text)
+                        results = self.semanticRanker.rank(PowerSearch.filter(items, filters: filters), query: text)
                     }
                     self.searchResults = results
                 }
