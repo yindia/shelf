@@ -5,33 +5,46 @@ import Foundation
 /// apple-touch-icon, then a large favicon. Returns nil when none resolves (the
 /// UI then shows a generated monogram tile).
 enum LinkArt {
-    /// Returns raw image bytes (Sendable) so the result can cross actor
-    /// boundaries; callers build the `NSImage` on their own actor.
-    static func fetch(_ url: URL) async -> Data? {
-        guard let host = url.host else { return nil }
+    /// Rich link metadata: thumbnail bytes + page title (both Sendable).
+    struct Metadata: Sendable {
+        var imageData: Data?
+        var title: String?
+    }
 
-        // 1) Parse the page head for og:image / apple-touch-icon.
+    /// Fetches a page's thumbnail and title in one request where possible.
+    static func fetchMetadata(_ url: URL) async -> Metadata {
+        guard let host = url.host else { return Metadata() }
+        var title: String?
+
+        // 1) Parse the page head for og:image / og:title / apple-touch-icon.
         if let html = await html(for: url) {
+            title = metaContent(html, property: "og:title") ?? htmlTitle(html)
             if let og = metaContent(html, property: "og:image"),
                let link = resolve(og, base: url), let data = await image(link) {
-                return data
+                return Metadata(imageData: data, title: title)
             }
             if let touch = linkHref(html, rel: "apple-touch-icon"),
                let link = resolve(touch, base: url), let data = await image(link) {
-                return data
+                return Metadata(imageData: data, title: title)
             }
         }
         // 2) Well-known apple-touch-icon path.
         if let scheme = url.scheme,
            let direct = URL(string: "\(scheme)://\(host)/apple-touch-icon.png"),
            let data = await image(direct) {
-            return data
+            return Metadata(imageData: data, title: title)
         }
         // 3) Large favicon fallback.
         if let fav = URL(string: "https://www.google.com/s2/favicons?sz=128&domain=\(host)") {
-            return await image(fav)
+            return Metadata(imageData: await image(fav), title: title)
         }
-        return nil
+        return Metadata(imageData: nil, title: title)
+    }
+
+    /// `<title>…</title>` text, trimmed.
+    private static func htmlTitle(_ html: String) -> String? {
+        firstGroup(html, "<title[^>]*>([^<]+)</title>")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func html(for url: URL) async -> String? {

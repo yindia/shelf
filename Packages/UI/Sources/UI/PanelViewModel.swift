@@ -38,6 +38,11 @@ public final class PanelViewModel: ObservableObject {
     private let onCopy: @MainActor (ClipItemModel) -> Void
     private let onDismiss: @MainActor () -> Void
     private var itemsTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
+    /// Debounced, cached Power Search results so we don't re-rank on every render.
+    @Published public private(set) var searchResults: [ClipItemModel] = []
+    /// Cached distinct source apps (recomputed only when the corpus changes).
+    @Published public private(set) var availableApps: [String] = []
 
     public init(
         itemRepository: ItemRepositoryReading,
@@ -62,6 +67,24 @@ public final class PanelViewModel: ObservableObject {
         self.onRulesChanged = onRulesChanged
         self.privacy = privacy
         self.onPrivacyChanged = onPrivacyChanged
+        setUpSearchPipeline()
+    }
+
+    /// Recompute search results off the render path: debounce keystrokes/filter
+    /// changes and rank once, caching the result.
+    private func setUpSearchPipeline() {
+        $allItems
+            .map { Array(Set($0.compactMap(\.sourceBundleID))).sorted() }
+            .removeDuplicates()
+            .assign(to: &$availableApps)
+
+        Publishers.CombineLatest4($searchText, $filters, $allItems, $isSearching)
+            .debounce(for: .milliseconds(120), scheduler: DispatchQueue.main)
+            .sink { [weak self] text, filters, items, searching in
+                guard let self else { return }
+                self.searchResults = searching ? PowerSearch.run(items, text: text, filters: filters) : []
+            }
+            .store(in: &cancellables)
     }
 
     public func beginEditRules() { isEditingRules = true }
@@ -88,16 +111,9 @@ public final class PanelViewModel: ObservableObject {
         return collections.first { $0.id == listID } ?? collections.first(where: \.isDefault)
     }
 
-    /// Items after applying the search filter.
+    /// Items after applying the search filter (cached; see setUpSearchPipeline).
     public var visibleItems: [ClipItemModel] {
-        guard isSearching else { return items }
-        // Power Search: spans all pinboards, fuzzy text + filters, ranked.
-        return PowerSearch.run(allItems, text: searchText, filters: filters)
-    }
-
-    /// Distinct source apps present in the corpus (for the App filter menu).
-    public var availableApps: [String] {
-        Array(Set(allItems.compactMap(\.sourceBundleID))).sorted()
+        isSearching ? searchResults : items
     }
 
     public func togglePinboardFilter(_ id: UUID) { toggle(&filters.pinboards, id) }
@@ -105,6 +121,51 @@ public final class PanelViewModel: ObservableObject {
     public func toggleApp(_ app: String) { toggle(&filters.apps, app) }
     public func setDate(_ date: DateFilter) { filters.date = date; selectedIndex = 0 }
     public func clearFilters() { filters = SearchFilters(); selectedIndex = 0 }
+
+    // MARK: Power Search tokens (inline chips + autocomplete)
+
+    private var availableAppPairs: [(id: String, name: String)] {
+        availableApps.map { ($0, SourceAppIcon.name(for: $0) ?? $0) }
+    }
+
+    /// Autocomplete suggestions for the text currently being typed.
+    public var searchSuggestions: [SearchToken] {
+        SearchSuggestions.matches(partial: searchText, apps: availableAppPairs,
+                                  collections: collections, active: filters)
+    }
+
+    /// Active filters as removable inline tokens.
+    public var activeSearchTokens: [SearchToken] {
+        SearchSuggestions.activeTokens(filters, collections: collections,
+                                       appName: { SourceAppIcon.name(for: $0) ?? $0 })
+    }
+
+    /// Add a filter from a chosen suggestion, clearing the typed partial.
+    public func applyToken(_ token: SearchToken) {
+        switch token {
+        case .kind(let k): filters.kinds.insert(k)
+        case .app(let b, _): filters.apps.insert(b)
+        case .date(let d): filters.date = d
+        case .pinboard(let id, _): filters.pinboards.insert(id)
+        }
+        searchText = ""
+        selectedIndex = 0
+    }
+
+    public func removeToken(_ token: SearchToken) {
+        switch token {
+        case .kind(let k): filters.kinds.remove(k)
+        case .app(let b, _): filters.apps.remove(b)
+        case .date: filters.date = .any
+        case .pinboard(let id, _): filters.pinboards.remove(id)
+        }
+        selectedIndex = 0
+    }
+
+    /// Remove the last token (backspace on an empty field).
+    public func removeLastToken() {
+        if let last = activeSearchTokens.last { removeToken(last) }
+    }
 
     private func toggle<T: Hashable>(_ set: inout Set<T>, _ value: T) {
         if set.contains(value) { set.remove(value) } else { set.insert(value) }

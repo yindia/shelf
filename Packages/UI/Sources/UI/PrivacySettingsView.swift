@@ -6,12 +6,16 @@ import SwiftUI
 /// whether confidential clipboard content is ignored.
 struct PrivacySettingsView: View {
     @State var settings: PrivacySettings
+    /// Embedded in the unified Settings window: commit live, no Done button/frame.
+    var embedded: Bool = false
     let onCommit: (PrivacySettings) -> Void
-    let onClose: () -> Void
+    var onClose: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Privacy").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+            if !embedded {
+                Text("Privacy").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             Toggle("Show during screen sharing", isOn: $settings.showDuringScreenSharing)
                 .toggleStyle(.switch)
@@ -57,15 +61,27 @@ struct PrivacySettingsView: View {
                 }
             }
 
-            HStack {
-                Spacer()
-                Button("Done") { onCommit(settings); onClose() }
-                    .buttonStyle(.borderedProminent)
+            Divider()
+
+            Toggle("Sync history across Macs with iCloud", isOn: $settings.iCloudSyncEnabled)
+                .toggleStyle(.switch)
+            Text("Mirrors your clipboard history to your other Macs via iCloud. Takes effect after you relaunch Shelf. Requires an iCloud-entitled build.")
+                .font(Theme.footerFont).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !embedded {
+                HStack {
+                    Spacer()
+                    Button("Done") { onCommit(settings); onClose() }
+                        .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(20)
-        .frame(width: 400)
+        .frame(width: embedded ? nil : 400)
+        .frame(maxWidth: embedded ? .infinity : nil, alignment: .leading)
+        .onChange(of: settings) { if embedded { onCommit(settings) } }
     }
 
     /// Pick an app to exclude; resolves its bundle id from the chosen bundle.

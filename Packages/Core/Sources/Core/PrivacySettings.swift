@@ -10,17 +10,22 @@ public struct PrivacySettings: Sendable, Codable, Equatable {
     public var retention: RetentionWindow
     /// Bundle ids of apps whose copies are never captured.
     public var excludedApps: Set<String>
+    /// Opt-in iCloud sync (requires a CloudKit-entitled, Dev ID signed build;
+    /// inert in the ad-hoc build). Applied at next launch.
+    public var iCloudSyncEnabled: Bool
 
     public init(showDuringScreenSharing: Bool = true, ignoreConfidential: Bool = true,
-                retention: RetentionWindow = .month, excludedApps: Set<String> = []) {
+                retention: RetentionWindow = .month, excludedApps: Set<String> = [],
+                iCloudSyncEnabled: Bool = false) {
         self.showDuringScreenSharing = showDuringScreenSharing
         self.ignoreConfidential = ignoreConfidential
         self.retention = retention
         self.excludedApps = excludedApps
+        self.iCloudSyncEnabled = iCloudSyncEnabled
     }
 
     enum CodingKeys: String, CodingKey {
-        case showDuringScreenSharing, ignoreConfidential, retention, excludedApps
+        case showDuringScreenSharing, ignoreConfidential, retention, excludedApps, iCloudSyncEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -29,5 +34,6 @@ public struct PrivacySettings: Sendable, Codable, Equatable {
         ignoreConfidential = try c.decodeIfPresent(Bool.self, forKey: .ignoreConfidential) ?? true
         retention = try c.decodeIfPresent(RetentionWindow.self, forKey: .retention) ?? .month
         excludedApps = try c.decodeIfPresent(Set<String>.self, forKey: .excludedApps) ?? []
+        iCloudSyncEnabled = try c.decodeIfPresent(Bool.self, forKey: .iCloudSyncEnabled) ?? false
     }
 }

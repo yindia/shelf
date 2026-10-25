@@ -34,15 +34,25 @@ public struct AutoCategorizationRules: Sendable, Codable, Equatable {
         self.rules = rules
     }
 
-    /// Default rule set: master OFF (opt-in), but the built-in kind rules are
-    /// enabled so flipping the master switch on works immediately.
+    /// Default rule set: master ON — built-in categories file content
+    /// automatically with no user setup. Every content kind has a home.
     public static var defaults: AutoCategorizationRules {
         let s = CollectionSeed.starters
         func id(_ name: String) -> UUID { s.first { $0.name == name }?.id ?? CollectionSeed.historyID }
-        return AutoCategorizationRules(enabled: false, rules: [
-            AutoRule(enabled: true, match: .kind(.link), collectionID: id("Links")),
-            AutoRule(enabled: true, match: .kind(.code), collectionID: id("Code")),
-            AutoRule(enabled: true, match: .kind(.image), collectionID: id("Images")),
+        func rule(_ kind: ClipKind, _ name: String) -> AutoRule {
+            AutoRule(enabled: true, match: .kind(kind), collectionID: id(name))
+        }
+        return AutoCategorizationRules(enabled: true, rules: [
+            rule(.link, "Links"),
+            rule(.code, "Code"),
+            rule(.image, "Images"),
+            rule(.color, "Colors"),
+            rule(.file, "Files"),
+            rule(.video, "Media"),
+            rule(.audio, "Media"),
+            rule(.text, "Notes"),
+            rule(.richText, "Notes"),
+            rule(.html, "Notes"),
         ])
     }
 

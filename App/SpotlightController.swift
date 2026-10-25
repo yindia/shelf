@@ -84,10 +84,17 @@ final class SpotlightController {
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "c" {
             model.copySelection(); hide(); return true
         }
+        // Backspace on empty field removes the last filter token.
+        if event.keyCode == 51, model.searchText.isEmpty, !model.activeSearchTokens.isEmpty {
+            model.removeLastToken(); return true
+        }
         switch event.keyCode {
         case 125: model.moveDown(); return true   // down
         case 126: model.moveUp(); return true     // up
-        case 36, 76: model.activateSelection(); return true  // return
+        case 36, 76:                               // return
+            if let suggestion = model.searchSuggestions.first { model.applyToken(suggestion) }
+            else { model.activateSelection() }
+            return true
         case 53: model.dismiss(); return true     // escape
         default: return false                     // typing flows to the field
         }

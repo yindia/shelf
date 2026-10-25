@@ -12,15 +12,43 @@ public final class PersistentStore: @unchecked Sendable {
     }
 
     /// On-disk store under Application Support. `name` scopes the SQLite file.
-    public static func onDisk(name: String = "Shelf") throws -> PersistentStore {
-        let container = NSPersistentContainer(name: name, managedObjectModel: ClipModel.shared)
-        // Inferred lightweight migration so additive model changes don't need a reset.
-        container.persistentStoreDescriptions.forEach {
-            $0.shouldMigrateStoreAutomatically = true
-            $0.shouldInferMappingModelAutomatically = true
+    ///
+    /// When `cloudKitContainerID` is non-nil the store mirrors to iCloud via
+    /// `NSPersistentCloudKitContainer` (requires a CloudKit-entitled, Dev ID
+    /// signed build). If the CloudKit store fails to load (e.g. not entitled in
+    /// an ad-hoc build), it falls back to a plain local store so the app still
+    /// works offline.
+    public static func onDisk(name: String = "Shelf", cloudKitContainerID: String? = nil) throws -> PersistentStore {
+        if let cloudKitContainerID {
+            let cloud = NSPersistentCloudKitContainer(name: name, managedObjectModel: ClipModel.shared)
+            configure(cloud, cloudKitContainerID: cloudKitContainerID)
+            do {
+                try load(cloud)
+                return PersistentStore(container: cloud)
+            } catch {
+                // CloudKit unavailable/not entitled — fall back to local-only.
+            }
         }
+        let container = NSPersistentContainer(name: name, managedObjectModel: ClipModel.shared)
+        configure(container, cloudKitContainerID: nil)
         try load(container)
         return PersistentStore(container: container)
+    }
+
+    private static func configure(_ container: NSPersistentContainer, cloudKitContainerID: String?) {
+        container.persistentStoreDescriptions.forEach { description in
+            // Inferred lightweight migration so additive model changes don't need a reset.
+            description.shouldMigrateStoreAutomatically = true
+            description.shouldInferMappingModelAutomatically = true
+            if let cloudKitContainerID {
+                // History tracking + remote-change notifications are required for
+                // CloudKit mirroring to merge changes from other devices.
+                description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+                description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+                description.cloudKitContainerOptions =
+                    NSPersistentCloudKitContainerOptions(containerIdentifier: cloudKitContainerID)
+            }
+        }
     }
 
     /// Volatile store for tests.

@@ -21,22 +21,22 @@ public struct PanelView: View {
             GlassSurface()
 
             VStack(spacing: 0) {
-                CollectionTabBar(
-                    collections: model.collections,
-                    selectedID: model.selectedCollectionID,
-                    isSearching: model.isSearching,
-                    searchText: $model.searchText,
-                    onSelect: { model.selectCollection($0) },
-                    onToggleSearch: { model.toggleSearch() },
-                    onAdd: { model.beginCreateCollection() },
-                    onMove: { model.move(itemID: $0, to: $1) },
-                    onDelete: { model.deleteCollection($0) }
-                )
-                Divider().opacity(0.5)
                 if model.isSearching {
-                    PowerSearchBar(model: model)
-                    Divider().opacity(0.3)
+                    searchBar
+                } else {
+                    CollectionTabBar(
+                        collections: model.collections,
+                        selectedID: model.selectedCollectionID,
+                        isSearching: false,
+                        searchText: $model.searchText,
+                        onSelect: { model.selectCollection($0) },
+                        onToggleSearch: { model.toggleSearch() },
+                        onAdd: { model.beginCreateCollection() },
+                        onMove: { model.move(itemID: $0, to: $1) },
+                        onDelete: { model.deleteCollection($0) }
+                    )
                 }
+                Divider().opacity(0.5)
                 // Rebuild the content subtree on each collection change so no
                 // stale cards survive; swap is instant (no cross-fade).
                 content
@@ -90,6 +90,27 @@ public struct PanelView: View {
         }
     }
 
+    /// Power Search: centered token field with inline filter chips + autocomplete.
+    private var searchBar: some View {
+        HStack {
+            Spacer(minLength: 8)
+            TokenSearchField(
+                text: $model.searchText,
+                tokens: model.activeSearchTokens,
+                suggestions: model.searchSuggestions,
+                onApply: { model.applyToken($0) },
+                onRemove: { model.removeToken($0) },
+                onRemoveLast: { model.removeLastToken() },
+                onClose: { model.toggleSearch() }
+            )
+            .frame(maxWidth: 560)
+            Spacer(minLength: 8)
+        }
+        .frame(height: Theme.tabBarHeight)
+        .padding(.horizontal, Theme.panelPadding)
+        .zIndex(10)
+    }
+
     @ViewBuilder private var content: some View {
         if model.isLoading && model.items.isEmpty && !model.isSearching {
             ProgressView()
@@ -105,7 +126,7 @@ public struct PanelView: View {
     private var carousel: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.cardSpacing) {
+                HStack(alignment: .top, spacing: Theme.cardSpacing) {
                     ForEach(Array(model.visibleItems.enumerated()), id: \.element.id) { index, item in
                         ItemCardView(
                             item: item,
@@ -116,7 +137,7 @@ public struct PanelView: View {
                         )
                         .id(index)
                         .onAppear { model.loadMoreIfNeeded(currentIndex: index) }
-                        .draggable(item.id.uuidString)
+                        .onDrag { Self.dragProvider(for: item) }
                         .onTapGesture(count: 2) { model.activate(index: index) }
                         .onTapGesture { model.selectIndex(index) }
                         .contextMenu { CardContextMenu(item: item, model: model, pendingDelete: $pendingDelete) }
@@ -140,6 +161,28 @@ public struct PanelView: View {
                 }
             }
         }
+    }
+
+    /// Drag payload: the real copied content for external apps (so a drop pastes
+    /// text/image, not the UUID) plus a private item-id type for internal
+    /// collection reordering.
+    private static func dragProvider(for item: ClipItemModel) -> NSItemProvider {
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: UTIs.shelfItemID, visibility: .ownProcess) { done in
+            done(Data(item.id.uuidString.utf8), nil); return nil
+        }
+        if item.kind == .image, let png = item.data(for: UTIs.png) ?? item.data(for: UTIs.tiff) {
+            provider.registerDataRepresentation(forTypeIdentifier: UTIs.png, visibility: .all) { done in
+                done(png, nil); return nil
+            }
+        }
+        let text = item.plainText ?? item.linkURL?.absoluteString ?? ""
+        if !text.isEmpty {
+            provider.registerDataRepresentation(forTypeIdentifier: UTIs.utf8PlainText, visibility: .all) { done in
+                done(Data(text.utf8), nil); return nil
+            }
+        }
+        return provider
     }
 
     private var emptyState: some View {

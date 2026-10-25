@@ -12,6 +12,9 @@ public final class SpotlightViewModel: ObservableObject {
     @Published public private(set) var collections: [Collection] = []
     @Published public var searchText = ""
     @Published public var selectedIndex = 0
+    @Published public var filters = SearchFilters()
+    @Published public private(set) var searchResults: [ClipItemModel] = []
+    private var cancellables = Set<AnyCancellable>()
 
     private let itemRepo: ItemRepositoryReading
     private let collectionRepo: CollectionRepository
@@ -32,6 +35,19 @@ public final class SpotlightViewModel: ObservableObject {
         self.onActivate = onActivate
         self.onCopy = onCopy
         self.onDismiss = onDismiss
+
+        // Debounced, cached ranking so typing doesn't re-run Power Search per render.
+        Publishers.CombineLatest3($searchText, $filters, $allItems)
+            .debounce(for: .milliseconds(120), scheduler: DispatchQueue.main)
+            .sink { [weak self] text, filters, items in
+                guard let self else { return }
+                if text.trimmingCharacters(in: .whitespaces).isEmpty && filters.isEmpty {
+                    self.searchResults = Array(items.prefix(50))
+                } else {
+                    self.searchResults = PowerSearch.run(items, text: text, filters: filters)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     public func activate() {
@@ -49,10 +65,49 @@ public final class SpotlightViewModel: ObservableObject {
 
     /// Empty query → recent items; otherwise ranked Power Search over everything.
     public var results: [ClipItemModel] {
-        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-            return Array(allItems.prefix(50))
+        searchResults
+    }
+
+    // MARK: Power Search tokens (same model as the main panel)
+
+    private var availableAppPairs: [(id: String, name: String)] {
+        Array(Set(allItems.compactMap(\.sourceBundleID))).sorted()
+            .map { ($0, SourceAppIcon.name(for: $0) ?? $0) }
+    }
+
+    public var searchSuggestions: [SearchToken] {
+        SearchSuggestions.matches(partial: searchText, apps: availableAppPairs,
+                                  collections: collections, active: filters)
+    }
+
+    public var activeSearchTokens: [SearchToken] {
+        SearchSuggestions.activeTokens(filters, collections: collections,
+                                       appName: { SourceAppIcon.name(for: $0) ?? $0 })
+    }
+
+    public func applyToken(_ token: SearchToken) {
+        switch token {
+        case .kind(let k): filters.kinds.insert(k)
+        case .app(let b, _): filters.apps.insert(b)
+        case .date(let d): filters.date = d
+        case .pinboard(let id, _): filters.pinboards.insert(id)
         }
-        return PowerSearch.run(allItems, text: searchText, filters: SearchFilters())
+        searchText = ""
+        selectedIndex = 0
+    }
+
+    public func removeToken(_ token: SearchToken) {
+        switch token {
+        case .kind(let k): filters.kinds.remove(k)
+        case .app(let b, _): filters.apps.remove(b)
+        case .date: filters.date = .any
+        case .pinboard(let id, _): filters.pinboards.remove(id)
+        }
+        selectedIndex = 0
+    }
+
+    public func removeLastToken() {
+        if let last = activeSearchTokens.last { removeToken(last) }
     }
 
     public func color(for listID: UUID?) -> Color? {

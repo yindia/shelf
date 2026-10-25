@@ -7,16 +7,18 @@ import SwiftUI
 struct AutoCategorizationSettingsView: View {
     @State var rules: AutoCategorizationRules
     let collections: [Collection]
+    var embedded: Bool = false
     let onCommit: (AutoCategorizationRules) -> Void
-    let onClose: () -> Void
+    var onClose: () -> Void = {}
 
     @State private var newPattern = ""
     @State private var newPatternCollection: UUID
 
-    init(rules: AutoCategorizationRules, collections: [Collection],
-         onCommit: @escaping (AutoCategorizationRules) -> Void, onClose: @escaping () -> Void) {
+    init(rules: AutoCategorizationRules, collections: [Collection], embedded: Bool = false,
+         onCommit: @escaping (AutoCategorizationRules) -> Void, onClose: @escaping () -> Void = {}) {
         _rules = State(initialValue: rules)
         self.collections = collections
+        self.embedded = embedded
         self.onCommit = onCommit
         self.onClose = onClose
         _newPatternCollection = State(initialValue: collections.first { !$0.isDefault }?.id
@@ -25,8 +27,10 @@ struct AutoCategorizationSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Auto-Categorization").font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if !embedded {
+                Text("Auto-Categorization").font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             Toggle("File new clips into collections automatically", isOn: $rules.enabled)
                 .toggleStyle(.switch)
@@ -48,16 +52,19 @@ struct AutoCategorizationSettingsView: View {
 
             patternAdder
 
-            HStack {
-                Spacer()
-                Button("Done") { onCommit(rules); onClose() }
-                    .buttonStyle(.borderedProminent)
+            if !embedded {
+                HStack {
+                    Spacer()
+                    Button("Done") { onCommit(rules); onClose() }
+                        .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(20)
-        .frame(width: 440)
-        .disabled(false)
+        .frame(width: embedded ? nil : 440)
+        .frame(maxWidth: embedded ? .infinity : nil, alignment: .leading)
+        .onChange(of: rules) { if embedded { onCommit(rules) } }
     }
 
     private func ruleRow(_ rule: Binding<AutoRule>) -> some View {

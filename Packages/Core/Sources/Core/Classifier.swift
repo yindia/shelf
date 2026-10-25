@@ -43,6 +43,7 @@ public struct Classifier: Sendable {
 
         if let text = plainText(in: reps) {
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if Classifier.looksLikeHexColor(trimmed) { return .color }
             if looksLikeURL(text) || MapLink.isMap(URL(string: trimmed)) { return .link }
             let fromDevApp = sourceBundleID.map(developerBundleIDs.contains) ?? false
             if looksLikeCode(text, fromDeveloperApp: fromDevApp) { return .code }
@@ -69,6 +70,13 @@ public struct Classifier: Sendable {
             }
         }
         return nil
+    }
+
+    /// A bare hex color like `#F5AB82`, `F5AB82`, `#FFF`, or `#RRGGBBAA`.
+    public static func looksLikeHexColor(_ s: String) -> Bool {
+        let hex = s.hasPrefix("#") ? String(s.dropFirst()) : s
+        guard [3, 6, 8].contains(hex.count) else { return false }
+        return hex.allSatisfy { $0.isHexDigit }
     }
 
     /// Single-token string that parses as an http(s) URL.

@@ -83,6 +83,7 @@ public final class HotKey {
 /// Carbon key/modifier constants for the default activation chord.
 public enum HotKeyCodes {
     public static let v = UInt32(kVK_ANSI_V)
+    public static let c = UInt32(kVK_ANSI_C)
     public static let space = UInt32(kVK_Space)
     public static let cmd = UInt32(cmdKey)
     public static let option = UInt32(optionKey)

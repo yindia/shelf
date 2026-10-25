@@ -8,10 +8,17 @@ public enum Theme {
     /// Roomy enough for previews to breathe.
     public static let cardWidth: CGFloat = 280
     public static let cardHeight: CGFloat = 324
-    /// HIG continuous corner radius for cards/panel.
-    public static let cornerRadius: CGFloat = 13
+    /// Continuous corner radius for cards (Paste reference scale).
+    public static let cornerRadius: CGFloat = 14
+    /// Faint hairline border drawn around every card for edge definition.
+    public static let hairlineOpacity: Double = 0.08
+
+    // MARK: Source app badge — white rounded tile in the header (reference).
+    public static let sourceTileSize: CGFloat = 34
+    public static let sourceTileCorner: CGFloat = 9
+
     public static let cardSpacing: CGFloat = 16
-    public static let headerHeight: CGFloat = 44
+    public static let headerHeight: CGFloat = 52
     public static let footerHeight: CGFloat = 28
     public static let bodyPadding: CGFloat = 16
     public static let headerPadding: CGFloat = 16
@@ -150,8 +157,9 @@ public enum Theme {
     public static let spotlightMaterial: NSVisualEffectView.Material = .hudWindow
 
     // MARK: Header / source icon
-    public static let sourceIconSize: CGFloat = 24
-    public static let sourceIconCorner: CGFloat = 6
+    /// Match the leading tile so both header icons share the header height.
+    public static let sourceIconSize: CGFloat = 26
+    public static let sourceIconCorner: CGFloat = 7
     /// Inset of the app icon from the header's trailing edge.
     public static let sourceIconInset: CGFloat = 6
 

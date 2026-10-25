@@ -50,6 +50,8 @@ enum CardMeta {
     static func subtitle(for item: ClipItemModel) -> String? {
         switch item.kind {
         case .link:
+            // Clean host (reference shows the domain under the page title).
+            if let host = item.linkURL?.host?.replacingOccurrences(of: "www.", with: "") { return host }
             return (item.plainText ?? "").replacingOccurrences(of: "https://", with: "")
                 .replacingOccurrences(of: "http://", with: "")
         case .file, .audio, .video:

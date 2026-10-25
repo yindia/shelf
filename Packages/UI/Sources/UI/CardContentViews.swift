@@ -23,7 +23,7 @@ struct CardContentView: View {
         case .image:
             ImageCardBody(item: item, data: imageData, dimensions: CardMeta.imageSize(item))
         case .color:
-            ColorCardBody(colorData: item.data(for: UTIs.color))
+            ColorCardBody(colorData: item.data(for: UTIs.color), text: item.plainText)
         case .link:
             if item.isMapLink {
                 MapCardBody(place: item.mapPlace, urlString: item.plainText ?? "")
@@ -52,6 +52,15 @@ struct TextCardBody: View {
             .foregroundStyle(.primary)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .lineLimit(nil)
+            // Reference: long text fades out at the bottom edge.
+            .mask(
+                LinearGradient(
+                    stops: [.init(color: .black, location: 0),
+                            .init(color: .black, location: 0.82),
+                            .init(color: .clear, location: 1)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
     }
 }
 
@@ -63,6 +72,7 @@ struct RichTextCardBody: View {
     var body: some View {
         if let attributed {
             Text(attributed)
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             TextCardBody(text: "(rich text)")
@@ -84,7 +94,22 @@ struct RichTextCardBody: View {
         guard let data, let ns = try? NSAttributedString(data: data, options: options, documentAttributes: nil) else {
             return nil
         }
-        return try? AttributedString(ns, including: \.appKit)
+        // Copied HTML/RTF bakes in the source page's styles: text/highlight
+        // colors (which can render invisible, e.g. white-on-white in light mode)
+        // and page-level heading sizes (which blow up a small card). Strip the
+        // colors and cap oversized fonts so the preview reads like clean text
+        // while keeping bold/italic. Paste still uses the original representation.
+        let clean = NSMutableAttributedString(attributedString: ns)
+        let full = NSRange(location: 0, length: clean.length)
+        clean.removeAttribute(.foregroundColor, range: full)
+        clean.removeAttribute(.backgroundColor, range: full)
+        let cap: CGFloat = 13
+        clean.enumerateAttribute(.font, in: full) { value, range, _ in
+            guard let font = value as? NSFont, font.pointSize > cap else { return }
+            let scaled = NSFontManager.shared.convert(font, toSize: cap)
+            clean.addAttribute(.font, value: scaled, range: range)
+        }
+        return try? AttributedString(clean, including: \.appKit)
     }
 }
 
@@ -236,22 +261,52 @@ struct MapCardBody: View {
 
 struct ColorCardBody: View {
     let colorData: Data?
+    var text: String? = nil
     var body: some View {
-        let nsColor = Self.decode(colorData)
-        VStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(nsColor.map(Color.init(nsColor:)) ?? .gray)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.black.opacity(0.08)))
+        let nsColor = Self.decode(colorData) ?? text.flatMap(Self.fromHex)
+        let color = nsColor.map(Color.init(nsColor:)) ?? .gray
+        // The whole body becomes the copied color, with the hex centered in a
+        // contrast-aware ink color (reference style).
+        ZStack {
+            color
             Text(nsColor.map(Self.hex) ?? "#------")
-                .font(Theme.monoFont)
-                .foregroundStyle(.primary)
+                .font(.system(.title3, design: .monospaced).weight(.medium))
+                .foregroundStyle(Self.ink(for: nsColor))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Black or white hex text depending on the swatch luminance.
+    static func ink(for color: NSColor?) -> Color {
+        guard let rgb = color?.usingColorSpace(.sRGB) else { return .primary }
+        let luminance = 0.299 * rgb.redComponent + 0.587 * rgb.greenComponent + 0.114 * rgb.blueComponent
+        return luminance > 0.6 ? .black : .white
     }
 
     static func decode(_ data: Data?) -> NSColor? {
         guard let data else { return nil }
         return try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data)
+    }
+
+    /// Parse a hex string (`#RRGGBB`, `RRGGBB`, `#RGB`, `#RRGGBBAA`) to NSColor.
+    static func fromHex(_ s: String) -> NSColor? {
+        var hex = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        if hex.count == 3 { hex = hex.map { "\($0)\($0)" }.joined() }   // #RGB -> #RRGGBB
+        guard hex.count == 6 || hex.count == 8, let value = UInt64(hex, radix: 16) else { return nil }
+        let r, g, b, a: CGFloat
+        if hex.count == 8 {
+            r = CGFloat((value >> 24) & 0xFF) / 255
+            g = CGFloat((value >> 16) & 0xFF) / 255
+            b = CGFloat((value >> 8) & 0xFF) / 255
+            a = CGFloat(value & 0xFF) / 255
+        } else {
+            r = CGFloat((value >> 16) & 0xFF) / 255
+            g = CGFloat((value >> 8) & 0xFF) / 255
+            b = CGFloat(value & 0xFF) / 255
+            a = 1
+        }
+        return NSColor(srgbRed: r, green: g, blue: b, alpha: a)
     }
 
     static func hex(_ color: NSColor) -> String {
@@ -284,9 +339,9 @@ struct LinkCardBody: View {
                 MonogramTile(seed: host)
             }
         }
+        // Full-bleed to the card edges (reference); the card's own clip rounds it.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.thumbCorner, style: .continuous))
-        .innerShadowOverlay()
+        .clipped()
     }
 }
 

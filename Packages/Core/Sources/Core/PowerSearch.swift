@@ -106,11 +106,16 @@ public enum PowerSearch {
     static func fuzzyContains(_ haystack: String, _ needle: String) -> Bool {
         guard needle.count >= 3 else { return false }
         let tolerance = needle.count <= 5 ? 1 : 2
+        // Cap the word scan so pathologically long fields (e.g. OCR text) don't
+        // stall ranking; only words near the needle length can match anyway.
+        var scanned = 0
         for word in haystack.split(whereSeparator: { !$0.isLetter && !$0.isNumber }) {
             if abs(word.count - needle.count) <= tolerance,
                editDistance(String(word), needle) <= tolerance {
                 return true
             }
+            scanned += 1
+            if scanned > 2000 { break }
         }
         return false
     }

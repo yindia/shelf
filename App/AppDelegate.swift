@@ -12,7 +12,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: HotKey?
     private var spotlightHotKey: HotKey?
     private var spotlight: SpotlightController?
+    private var stackHotKey: HotKey?
+    private var pasteStack: PasteStackController?
     private var model: PanelViewModel?
+    private var settingsWindow: SettingsWindowController?
     /// App that was frontmost when the panel opened — the paste-back target.
     private var previousApp: NSRunningApplication?
     private var isPaused = false
@@ -59,6 +62,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             model.activate()
             self.model = model
+            self.settingsWindow = SettingsWindowController(model: model)
+
+            // Paste Stack: push each new capture onto the stack while it's active.
+            let pasteStack = PasteStackController(
+                pasteboard: environment.pasteboard,
+                suppress: { fp in Task { await environment.capture.suppress(fingerprint: fp) } }
+            )
+            self.pasteStack = pasteStack
+            environment.capture.setOnNewItem { item in
+                Task { @MainActor in pasteStack.stack.push(item) }
+            }
+
             Task { await environment.capture.setRules(savedRules) }
             let previewLoader = MediaPreviewLoader(
                 thumbnailProvider: environment.thumbnailProvider,
@@ -125,14 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Clear All History…", action: #selector(clearAll), keyEquivalent: "")
         menu.addItem(.separator())
 
-        // Settings submenu.
-        let settings = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
-        let settingsMenu = NSMenu()
-        settingsMenu.addItem(withTitle: "Privacy…", action: #selector(openPrivacy), keyEquivalent: "")
-        settingsMenu.addItem(withTitle: "Auto-Categorization…", action: #selector(openRules), keyEquivalent: "")
-        settingsMenu.items.forEach { $0.target = self }
-        settings.submenu = settingsMenu
-        menu.addItem(settings)
+        // Unified settings window (Apple System Settings style).
+        menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
 
         menu.addItem(withTitle: "About Shelf", action: #selector(showAbout), keyEquivalent: "")
         updateMenuItem = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
@@ -156,8 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         action()
     }
 
-    @objc private func openPrivacy() { presentingPanel { [weak self] in self?.model?.beginEditPrivacy() } }
-    @objc private func openRules() { presentingPanel { [weak self] in self?.model?.beginEditRules() } }
+    @objc private func openSettings() { settingsWindow?.show() }
 
     @objc private func showAbout() {
         NSApp.activate(ignoringOtherApps: true)
@@ -264,6 +272,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                 modifiers: HotKeyCodes.cmd | HotKeyCodes.control), id: 2)
         if !ok { NSLog("Shelf: failed to register search hotkey (⌃⌘V) — likely in use by another app") }
         self.spotlightHotKey = spotlightHotKey
+
+        // ⇧⌘C — toggle Paste Stack (sequential copy/paste).
+        let stackHotKey = HotKey { [weak self] in self?.pasteStack?.toggle() }
+        stackHotKey.register(.init(keyCode: HotKeyCodes.c, modifiers: HotKeyCodes.cmd | HotKeyCodes.shift), id: 3)
+        self.stackHotKey = stackHotKey
     }
 
     @objc private func toggleSpotlight() {

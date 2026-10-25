@@ -10,6 +10,7 @@ public final class MediaPreviewLoader: ObservableObject {
     @Published private var thumbnails: [UUID: NSImage] = [:]
     @Published private var infos: [UUID: MediaInfo] = [:]
     @Published private var linkImages: [UUID: NSImage] = [:]
+    @Published private var linkTitles: [UUID: String] = [:]
 
     private let thumbnailProvider: ThumbnailProviding
     private let infoProvider: MediaInfoProviding
@@ -66,13 +67,19 @@ public final class MediaPreviewLoader: ObservableObject {
         inFlightLinks.insert(item.id)
         let id = item.id
         Task {
-            let data = await LinkArt.fetch(url)   // Sendable Data crosses the boundary
+            let meta = await LinkArt.fetchMetadata(url)   // Sendable, crosses the boundary
             await MainActor.run {
                 self.inFlightLinks.remove(id)
-                if let data, let image = NSImage(data: data) { self.linkImages[id] = image }
+                if let data = meta.imageData, let image = NSImage(data: data) { self.linkImages[id] = image }
+                if let title = meta.title, !title.isEmpty { self.linkTitles[id] = title }
             }
         }
         return nil
+    }
+
+    /// Fetched page title for a link (nil until the metadata fetch resolves).
+    public func linkTitle(for item: ClipItemModel) -> String? {
+        linkTitles[item.id]
     }
 
     /// Test/snapshot seam: inject a precomputed thumbnail/info/link image.

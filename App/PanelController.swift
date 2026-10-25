@@ -122,13 +122,28 @@ final class PanelController {
             return true
         }
 
+        // Backspace on an empty search field removes the last filter token
+        // (SwiftUI's TextField swallows .onKeyPress(.delete), so handle it here).
+        if event.keyCode == 51, model.isSearching, model.searchText.isEmpty {
+            model.removeLastToken()
+            return true
+        }
+
         switch event.keyCode {
         case 123: model.moveLeft(); return true      // left arrow
         case 124: model.moveRight(); return true     // right arrow
-        case 49: onQuickLook?(); return true          // space → Quick Look
-        // Return / keypad enter — Shift pastes as plain text (like Option).
+        case 49:                                       // space → Quick Look
+            if model.isSearching { return false }      // ...but type a space while searching
+            onQuickLook?()
+            return true
+        // Return / keypad enter. While searching, Return first accepts the top
+        // filter suggestion; otherwise it pastes (Shift = plain text, like Option).
         case 36, 76:
-            model.activateSelection(plainText: plain || event.modifierFlags.contains(.shift))
+            if model.isSearching, let suggestion = model.searchSuggestions.first {
+                model.applyToken(suggestion)
+            } else {
+                model.activateSelection(plainText: plain || event.modifierFlags.contains(.shift))
+            }
             return true
         case 53:                                       // escape — one-way hide
             if model.isSearching {

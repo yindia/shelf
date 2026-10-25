@@ -13,7 +13,7 @@ public struct SpotlightSearchView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            field
+            field.zIndex(1)   // keep the autocomplete dropdown above the results list
             if !model.results.isEmpty {
                 Divider().opacity(0.5)
                 list
@@ -30,17 +30,18 @@ public struct SpotlightSearchView: View {
     }
 
     private var field: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass").font(.title3).foregroundStyle(.secondary)
-            TextField("Search your clipboard…", text: $model.searchText)
-                .textFieldStyle(.plain)
-                .font(.title3)
-                .focused($focused)
-                .onChange(of: model.searchText) { _, _ in model.onSearchChanged() }
-        }
-        .padding(.horizontal, 20)
-        .frame(height: Theme.spotlightFieldHeight)
-        .onAppear { focused = true }
+        TokenSearchField(
+            text: $model.searchText,
+            placeholder: "Search your clipboard…",
+            tokens: model.activeSearchTokens,
+            suggestions: model.searchSuggestions,
+            onApply: { model.applyToken($0) },
+            onRemove: { model.removeToken($0) },
+            onRemoveLast: { model.removeLastToken() }
+        )
+        .onChange(of: model.searchText) { _, _ in model.onSearchChanged() }
+        .padding(.horizontal, 16)
+        .frame(minHeight: Theme.spotlightFieldHeight)
     }
 
     private var list: some View {

@@ -16,7 +16,10 @@ final class AppEnvironment {
     let quickLook: QuickLookPresenter
 
     init() throws {
-        let store = try PersistentStore.onDisk(name: "Shelf")
+        let store = try PersistentStore.onDisk(
+            name: "Shelf",
+            cloudKitContainerID: SyncSettings.activeContainerID(PrivacyPersistence.load())
+        )
         let repository = CoreDataItemRepository(store: store)
         let pasteboard = SystemPasteboard()
 

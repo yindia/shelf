@@ -1,5 +1,6 @@
 import Core
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Top bar (HIG), true three-zone layout that never collides: leading search
 /// (fixed), centered collection tabs (flexible; scrolls when they overflow),
@@ -23,12 +24,15 @@ struct CollectionTabBar: View {
     var body: some View {
         HStack(spacing: Theme.tabSpacing) {
             if isSearching {
-                // A single full-width search field — fixed position, no layout shift.
-                searchField
+                // Centered search pill (reference style), not a full-width bar.
+                Spacer(minLength: 8)
+                searchField.frame(maxWidth: 560)
+                Spacer(minLength: 8)
             } else {
+                // Centered group: search · tabs · add (reference layout).
+                Spacer(minLength: 8)
                 iconButton("magnifyingglass", help: "Search", action: onToggleSearch)
                     .fixedSize()
-                // Left-aligned tabs (scroll if they overflow) + inline "+".
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.tabGap) {
                         ForEach(collections) { tab($0) }
@@ -37,6 +41,7 @@ struct CollectionTabBar: View {
                     .frame(maxHeight: .infinity)
                 }
                 .scrollClipDisabled()
+                .fixedSize(horizontal: true, vertical: false)
                 Spacer(minLength: 8)
             }
         }
@@ -115,12 +120,18 @@ struct CollectionTabBar: View {
                 Button("Delete Collection", role: .destructive) { onDelete(collection.id) }
             }
         }
-        .dropDestination(for: String.self) { ids, _ in
-            guard let first = ids.first, let itemID = UUID(uuidString: first) else { return false }
-            onMove(itemID, collection.id)
+        .onDrop(of: [UTType(UTIs.shelfItemID) ?? .data], isTargeted: Binding(
+            get: { dropTargetID == collection.id },
+            set: { targeted in
+                dropTargetID = targeted ? collection.id : (dropTargetID == collection.id ? nil : dropTargetID)
+            }
+        )) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadDataRepresentation(forTypeIdentifier: UTIs.shelfItemID) { data, _ in
+                guard let data, let id = UUID(uuidString: String(decoding: data, as: UTF8.self)) else { return }
+                Task { @MainActor in onMove(id, collection.id) }
+            }
             return true
-        } isTargeted: { targeted in
-            dropTargetID = targeted ? collection.id : (dropTargetID == collection.id ? nil : dropTargetID)
         }
         .accessibilityLabel(collection.name)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)

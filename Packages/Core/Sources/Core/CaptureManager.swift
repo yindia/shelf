@@ -43,6 +43,8 @@ public actor CaptureManager {
     private var rules: AutoCategorizationRules = AutoCategorizationRules()
     /// Fingerprints we wrote ourselves (paste-back) so we skip re-capturing them.
     private var suppressedFingerprints: Set<String> = []
+    /// Notified after each new item is persisted (e.g. to push onto Paste Stack).
+    private var onNewItem: (@Sendable (ClipItemModel) -> Void)?
 
     public init(
         pasteboard: PasteboardReading,
@@ -96,6 +98,11 @@ public actor CaptureManager {
         self.rules = rules
     }
 
+    /// Register a sink for newly captured items (Paste Stack pushes here).
+    public func setOnNewItem(_ handler: (@Sendable (ClipItemModel) -> Void)?) {
+        self.onNewItem = handler
+    }
+
     /// Toggle whether confidential (concealed) content is ignored.
     public func setIgnoreConfidential(_ value: Bool) {
         config.ignoreConfidential = value
@@ -144,7 +151,9 @@ public actor CaptureManager {
             listID: rules.route(kind: kind, text: text, fallback: config.defaultListID),
             ocrText: ocrText
         )
-        _ = try? await repository.insert(draft)
+        if let inserted = try? await repository.insert(draft) {
+            onNewItem?(inserted)
+        }
     }
 
     private func isControlType(_ uti: String) -> Bool {

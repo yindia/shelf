@@ -186,9 +186,20 @@ final class CaptureTests: XCTestCase {
     }
 
     func testAutoRouteDisabledKeepsHistory() {
-        let rules = AutoCategorizationRules.defaults  // master OFF
+        var rules = AutoCategorizationRules.defaults
+        rules.enabled = false  // explicitly off
         XCTAssertEqual(rules.route(kind: .link, text: "https://x.com", fallback: CollectionSeed.historyID),
                        CollectionSeed.historyID)
+    }
+
+    func testDefaultsAreEnabledAndRouteEveryKind() {
+        let rules = AutoCategorizationRules.defaults  // master ON by default
+        XCTAssertTrue(rules.enabled)
+        func id(_ name: String) -> UUID { CollectionSeed.starters.first { $0.name == name }!.id }
+        XCTAssertEqual(rules.route(kind: .link, text: "https://x.com", fallback: CollectionSeed.historyID), id("Links"))
+        XCTAssertEqual(rules.route(kind: .text, text: "hi", fallback: CollectionSeed.historyID), id("Notes"))
+        XCTAssertEqual(rules.route(kind: .color, text: nil, fallback: CollectionSeed.historyID), id("Colors"))
+        XCTAssertEqual(rules.route(kind: .video, text: nil, fallback: CollectionSeed.historyID), id("Media"))
     }
 
     func testAutoRouteEnabledKindRule() {
@@ -196,9 +207,10 @@ final class CaptureTests: XCTestCase {
         rules.enabled = true
         rules.rules = rules.rules.map { var r = $0; r.enabled = true; return r }
         let links = CollectionSeed.starters.first { $0.name == "Links" }!.id
+        let notes = CollectionSeed.starters.first { $0.name == "Notes" }!.id
         XCTAssertEqual(rules.route(kind: .link, text: "https://x.com", fallback: CollectionSeed.historyID), links)
-        // Unmatched kind falls back to history.
-        XCTAssertEqual(rules.route(kind: .text, text: "hi", fallback: CollectionSeed.historyID), CollectionSeed.historyID)
+        // Text now routes to Notes under the default rule set.
+        XCTAssertEqual(rules.route(kind: .text, text: "hi", fallback: CollectionSeed.historyID), notes)
     }
 
     func testAutoRouteTextPattern() {
