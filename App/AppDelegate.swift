@@ -70,8 +70,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 suppress: { fp in Task { await environment.capture.suppress(fingerprint: fp) } }
             )
             self.pasteStack = pasteStack
-            environment.capture.setOnNewItem { item in
-                Task { @MainActor in pasteStack.stack.push(item) }
+            Task {
+                await environment.capture.setOnNewItem { item in
+                    Task { @MainActor in pasteStack.stack.push(item) }
+                }
             }
 
             Task { await environment.capture.setRules(savedRules) }
